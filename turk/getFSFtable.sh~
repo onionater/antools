@@ -1,0 +1,7 @@
+#!/bin/bash
+ssh askerry@mindhive.mit.edu bash dlFSF.sh
+
+cd /Users/amyskerry/Dropbox/fsfcsvs'
+
+sftp askerry@mindhive.mit.edu get tempdl.csv
+

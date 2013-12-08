@@ -4,6 +4,7 @@ Created on Mon Dec  2 14:31:34 2013
 
 @author: amyskerry
 """
+import numpy as np
 
 def makeint(myval):
     try:
@@ -20,10 +21,32 @@ def allindices(mylist,mycriterion):
 def floatrange(start, stop, step):
     myrange=[]
     r = start
-    while r <= stop+step:
+    while r < stop:
         myrange.append(round(r,5))
         r += step
     return myrange
+    
+def binarizeregressors(stimdata, **kwargs):
+    thresh=5
+    if 'thresh' in kwargs.keys():
+        thresh=kwargs['thresh']
+    binarized=[]
+    for rating in stimdata:
+        binrate=int(rating>thresh)
+        binarized.append(binrate)
+    return binarized
+    
+def pairwisecorrel(listoflists):
+    if len(listoflists)>1:
+        corrs=np.corrcoef(listoflists)
+        tri=np.triu(corrs)
+        tri[np.diag_indices_from(tri)]=0
+        tri2=tri[tri !=0]
+        tri2sq=tri2**2
+        avgRsq=np.mean(tri2sq)
+    else:
+        avgRsq=[]
+    return avgRsq
     
 def addlegend(colortuples, colorlabels, axis, **kwargs):
     #if using seaborn, you can get the set of colors for the plot using current_palette = sns.color_palette()

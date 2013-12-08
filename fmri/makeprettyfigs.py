@@ -34,7 +34,7 @@ mainfigxy=[5,10]
 main_const=0
 
 #sec analysis data
-discs=['facial expressions', 'situations', 'abstract']
+discs=['facial  \n expressions', 'situations', 'abstract']
 otherregions=['rTPJ', 'PC', 'rTATL']
 regiondata=[[0.4949, 0.519125, 0.510275666], [0.5046, 0.5176875, 0.491411979], [0.5094, 0.49396875, 0.510275666]]
 regionerr=[[0.0113, 0.016743084, 0.007061238], [0.0128, 0.013888208, 0.009593776], [0.013, 0.012686324, 0.007061238]]
@@ -85,7 +85,7 @@ def makeSecFig(fig,ratio, intscale):
         ymax=.55    
         ymin=min(data)-max(err)*sec_scaler+sec_const
         [anotherax,axrange,interval,actmax]=makeplot(secgs, sub, data, err, discs, disccolors, ymax, ymin, interval, intscale)
-        anotherax=output[0]        
+        #anotherax=output[0]        
         axisrange.append(axrange)
         anotherax.set_title(region)
         pvalarray=check_pvals(actmax-interval*.2, pval,anotherax)
@@ -234,3 +234,6 @@ plt.savefig('otherrois.pdf')
 #plt.close('all')
 
 
+##otheranals
+#tom
+means=[[0.0416875,-0.15301875,	0.10955,	-0.127971875	,-0.162084375],[0.052053125,	-0.1816625,	0.12475,	-0.170734375	,-0.15685625],[0.22218125,	-0.00178125,	-0.023484375,	-0.21669375,	-0.04264375],[0.316271875,	0.02769375,	0.00544375,	-0.193390625,	0.003353125]]

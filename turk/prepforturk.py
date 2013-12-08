@@ -27,7 +27,7 @@ def makethestuff(base,conds,numhitpercond,cbvers,batch):
                     num='0'+str(n+1)
                 else:
                     num=str(n+1)
-                namest=base+'_r'+str(batch)+cb+'_'+c+'_'+num
+                namest=base+'_r'+str(batch+1)+cb+'_'+c+'_'+num
                 names.append(namest)
                 keys.append(makekeycode(n,c))
                 #do the other things
