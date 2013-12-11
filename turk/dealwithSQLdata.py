@@ -46,7 +46,7 @@ labeldict=dict(subIDs='subjid', ratingvects='rating1', timingvects='timing1', ba
 inclusioncol='submitdate'
 timingcol='timing1'
 datacols={'rate':'rating1','time':'timing1'}
-videodict={'r1a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r1b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r2a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r2b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r3a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r3b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r4a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r4b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r5a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r5b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r6a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r6b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r7a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r7b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r8a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r8b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130]}
+videodict={'r1a_timing': [10,130,137.05,257.05,264.05,384.05,391.4,511.4],'r1b_timing': [391.4,511.4,263.75,383.75,136.75,256.75,10,130],'r2a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r2b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r3a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r3b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r4a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r4b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r5a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r5b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r6a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r6b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r7a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r7b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130],'r8a_timing': [10.1,130.1,137.05,257.05,264.05,384.05,391.2,511.2],'r8b_timing': [391.2,511.2,263.75,383.75,136.75,256.75,10,130]}
 videonames={'r1':['a1.mp4','b1.mp4','c1.mp4','d1.mp4'], 'r2':['a2.mp4','b2.mp4','c2.mp4','d2.mp4'], 'r3':['a3.mp4','b3.mp4','c3.mp4','d3.mp4'], 'r4':['a4.mp4','b4.mp4','c4.mp4','d4.mp4'],'r5':['a5.mp4','b5.mp4','c5.mp4','d5.mp4'],'r6':['a6.mp4','b6.mp4','c6.mp4','d6.mp4'],'r7':['a7.mp4','b7.mp4','c7.mp4','d7.mp4'],'r8':['a8.mp4','b8.mp4','c8.mp4','d8.mp4']}
 #when updating, dont make these be .mp4
 numvidsperrun=4
@@ -257,7 +257,7 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                 plt.title('Timecourses: Run '+str(run))
                 plt.figlegend(dimboxes, dimlabels, loc='upper right')
         figname=writedir+'fig_run'+str(run)+'_'+label+'.pdf'            
-        sns.axlabel('time (seconds)', '')
+        sns.axlabel('time (.1 sec increments)', '')
         plt.savefig(figname)
     return subtally, avgRsq
         
@@ -338,7 +338,6 @@ def binarizeregs(stimdata, **kwargs):
 def printvismatrix(dims):
     sns.set(style="nogrid")
     allvectors=[]
-    breakvect=[0, 0, 0, 0, 0, ]
     for dim in dims:
         print dim
         dimvector=[]
@@ -418,6 +417,8 @@ condensed=condenseregressors(binarized, countunit, TR, condensethresh, TRprop) #
 [numsubjs, reliablitycorrs]=makeplots(data,goods,dimlist, rawOrnormed_plot,thresh=binthresh)
 
 scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'condensed':condensed,'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRsq':reliablitycorrs})
+
+plt.close('all')
 
 printvismatrix(dimlist)
 
