@@ -1,0 +1,93 @@
+-if a list (A) is made from another list (B), updating the component list (B) updates the elements in A
+b = a.copy() *makes independent copy
+
+-tuples are immutable
+
+NUMPY:
+-can make matrices of zeros, ones, etc.
+np.zeros((2,3)) or np.zeros([2,3])
+*note empty((2,3)) does not make empty arrays
+for a numpy array a…
+ a.shape, a.ndim, a.size, type(a), a.dtype.name
+
+can access multiple indices of a matrix
+e.g. a[[1,2,3],[3,2,1]]
+note
+c[:][2][1] and c[:,2,1] are not the same
+first returns matrix with index 2, row with index 1
+second returns the row index2, element index 1, for each matrix 
+iterating for multi-d matrices is done WRT first (rows) (e.g. for row in a:…)
+can perform element wise with .flat (e.g. for element in a.flat:…)
+arrange(start,end,step) is equivalent to range, but accepts floating numbers
+linspace(start,stop, numelements) *includes the stop value
+r_[1:5] (same as arange(1,5)) *matlab like matrix makers
+r_[1:10:2]= [1, 3, 5, 7, 9]
+m = mat(a) converts 2d array into matrix
+m.T or a.T= transpose of array or matrix
+reshape
+vstack((a,b)) *only first dimension can be different
+hstack((a,b)) *transposes arrays and stacks them as columns, only second dimension can be different
+*Unlike in many matrix languages, the product operator * operates elementwise in NumPy arrays. The matrix product can be performed using the dot function or creating matrix objects
++= and *= act in place
+
+np.random.rand(3,2)= 3x2 matrix of random values 0 to 1
+np.random.randint(min,max,size requested)
+maxindex = a.argmax()
+average(a)=average
+average(a, arrayofweights)= weighted average
+bincount(a)= histogram counts *can also take weights
+corrcoef(array1, array2)= correlation matrix
+
+*lots of operations apply to array as though it were single list of numbers, unless an axis is provided
+e.g. b.sum() = sum of all elements, b.sum(axis=0) sum of each column
+
+
+fliplr()
+flipud()
+flatten()
+
+all()
+any()
+alltrue()
+
+append(matrix,row,axis=0)
+append(matrix,list of column values,axis=1)
+e.g. append(a,[[3],[4],[5]], axis=1)
+
+apply_along_axis(myfunc,axis,matrix)
+axis=1 to apply to each row, axis=0 to apply to each column
+apply_over_axes(sum, a, [0,2]) # sum over all axes except axis=1, result has same shape as original
+
+
+function stuff:
+map(lambda x:x+1,list) *return function on each element of list
+must provide same number of lists/iterables as there are arguments to the function…
+e.g. map(lambda x,y:x+y, range(1,10), range(101,110))
+**note map(f, iterable) is equivalent to [f(x) for x in iterable], where the later is considered more pythonic
+** though I think the map lambda version is better than this
+[x+range(101,110)[xn] for xn, x in enumerate(range(1,10))]
+reduce(lambda x,y:x*y,list *return function on first two elements of list and then on returned value and next item in list…
+filter(function, sequence) *returns sequence of items for which function is true e.g. filter(lambda x: x>5 and x<12, range(2,20))
+
+list stuff:
+
+ipython:
+%cpaste
+magic
+ipython -i -c "import sys; sys.path.append('/software/pymvpa/')"
+
+
+questions:
+Are you using spaces or tabs for indentation? Why is that important to know?
+	•	What is the difference between import numpy and from numpy import *?
+	•	What is the difference between a Python list and a tuple?
+	•	What is the difference between a Python list and a Numpy ndarray?
+	•	What is the difference between an iterable and a generator in Python?
+	•	What is a list comprehension?
+	•	What is a callable?
+	•	What are *args and **kwargs usually used for?
+	•	When would you use ? or ?? in IPython?
+	•	What is the difference between a deep copy and a shallow copy?
+	•	What is a derived class?
+	•	Is it always a problem whenever a Python exception is raised?
+
