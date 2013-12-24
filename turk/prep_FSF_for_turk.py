@@ -13,7 +13,7 @@ slistfile='slist.py'
 slistnames=['subjects', 'keycodes']#list of the variables you want in .py file 
 variablenames=['subjID', 'keycode']# list of the variables you want in turk columns
 completed=[] # if you already have subjects in this batch (e.g. are reposting), enter them here 
-base='FSF'
+base='FSF_r'
 conds=['fa', 'ob', 'sc', 'me', 'so', 'ph'] #rating condiions
 numhitpercond=4 # number of hits you want for each individal counterbalancing/condition combo
 batchlabels4turk=['BLUE', 'GREEN', 'YELLOW', 'ORANGE', 'RED', 'PURPLE', 'TEAL', 'PINK']
@@ -27,7 +27,7 @@ varlist=[]
 for var in variablenames:
     varlist.append([])
 for batchnum,batch in enumerate(batchlabels4turk):
-    batchfile=rootdir+base+'_'+str(batchnum+1)+batch+'.csv'
+    batchfile=rootdir+'FSF'+'_'+str(batchnum+1)+batch+'.csv'
     variables=makethestuff(base,conds,numhitpercond,cbvers,batchnum)
     maketurkcsv(completed,variablenames,variables,batchfile)
     for n,var in enumerate(variables):

@@ -11,7 +11,8 @@ import aeslazy as asl
 import matplotlib.pyplot as plt
 
 resultsfile='/Users/amyskerry/NDEdl.csv'
-numquestions=85
+global numquestions
+numquestions=92
 
 def extractdata(datafile):
     with open(datafile, 'rU') as csvfile:
@@ -26,16 +27,16 @@ def extractdata(datafile):
                 subjdata.append(row)
     return sqlnames, subjdata
                 
-def findbads(datamatrix):
+def findbads(datamatrix, varnames):
     badsubjs=[0 for subj in datamatrix]
     for subjnum,subj in enumerate(datamatrix):
-        checkindex=vars.index('q86')
-        answerindex=vars.index('correctA86')
+        checkindex=varnames.index('q86')
+        answerindex=varnames.index('correctA86')
         if subj[checkindex]!='Neutral':
             print subj[answerindex]+ ': ' + subj[checkindex]
             badsubjs[subjnum]=badsubjs[subjnum]+1
-        checkindex=vars.index('q87')
-        answerindex=vars.index('correctA87')
+        checkindex=varnames.index('q87')
+        answerindex=varnames.index('correctA87')
         if subj[checkindex]!='Neutral':
             print subj[answerindex]+ ': ' + subj[checkindex]
             badsubjs[subjnum]=badsubjs[subjnum]+1
@@ -46,32 +47,37 @@ def scoreitems(sqlnames,datamatrix,numitems,*args):
         excludes=args[0]
     groupscores=[]
     groupresponses=[]
-    groupjudgecount=[0 for i in range(numitems)]
-    groupanswers=['NULL' for i in range(numitems)]
+    qs=range(1,numquestions+1)
+    qs.remove(86)
+    qs.remove(87)
+    groupjudgecount=[0 for i in qs]
+    groupanswers=['NULL' for i in range(numquestions)]
+    itemlabels=[]
+    needslabels=1
     for subjn,subj in enumerate(datamatrix):
         itemresponses=[]
-        itemlabels=[]
         itemanswers=[]
         itemacc=[]
         if excludes[subjn]==0:
-            for q in range(1,numitems+1):
+            for qn, q in enumerate(qs):
                 anscol=sqlnames.index('correctA'+str(q))
                 respcol=sqlnames.index('q'+str(q))
-                itemlabels.append('q'+str(q))
+                if needslabels:
+                    itemlabels.append('q'+str(q))
                 if subj[anscol]!='NULL':
                     groupanswers[q-1]=subj[anscol]
                 itemresponses.append(subj[respcol])
                 if subj[respcol]!='NULL':
                     itemacc.append(int(subj[respcol]==subj[anscol]))
-                    groupjudgecount[q-1]=groupjudgecount[q-1]+1
+                    groupjudgecount[qn]=groupjudgecount[qn]+1
                 else:
                     itemacc.append(nan)
-            print len(itemacc)
             groupscores.append(np.array(itemacc))
             groupresponses.append(itemresponses)
-    grouplabels=itemlabels
+            if len(itemlabels)>1:
+                needslabels=0
     #groupacc=groupscores(np.mean(groupscores))
-    return grouplabels, groupanswers, groupscores, groupresponses, groupjudgecount
+    return itemlabels, groupanswers, groupscores, groupresponses, groupjudgecount
 
 def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
     if orderedemos in args:
@@ -79,6 +85,7 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
     else:
         emos=list(set(answers))
         emos.remove('NULL')
+    answers=[ans for ans in answers if ans !='NULL']
     emoaccs=[]
     emomatrix=[]        
     for emo in emos:
@@ -91,7 +98,8 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
             thesevalues.append(stimavgs[i])
         emoaccs.append(np.nanmean(thesevalues))
     for respnum,resp in enumerate(responses):
-        for q in range(1,numitems+1):
+        qs=range(1,numquestions-1)
+        for q in qs:
             correct=answers[q-1]
             if correct !='NULL':
                 correctindex=emos.index(correct)
@@ -101,12 +109,11 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
             except:
                 pass
     sums=np.sum(emomatrix,1)
-    print sums
     newmatrix=[]
     for ln,line in enumerate(emomatrix):
         newmatrix.append(map(lambda x:float(x)/sums[ln], line)) 
-    print newmatrix
-    emomatrix=newmatrix
+    #print newmatrix
+    emomatrix=newmatrix #to normalize each row, use newmatrix
     emomatrix=np.array(emomatrix)
     ax=plt.subplot()
     pcolor(emomatrix, cmap='hot')
@@ -117,10 +124,13 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
     return emos, emoaccs, emomatrix
     
 [varnames,data]=extractdata(resultsfile)
-excl_list=findbads(data)
-[gl,ga,gs,gr,gjc]=scoreitems(vars,data,numquestions,excl_list)
+excl_list=findbads(data, varnames)
+[gl,ga,gs,gr,gjc]=scoreitems(varnames,data,numquestions,excl_list)
 stimmeans=list(np.nanmean(gs,0))
-orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed' ]
+orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise','Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed']
 [emonames, emoaccuracies, emoerrors]=condenseaccuracies(varnames, stimmeans,ga,gr, orderedemos)
+npgjc=np.array(gjc)
+maxN=13
+blacklist=np.array(gl)[npgjc>maxN]
 
 

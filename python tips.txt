@@ -70,6 +70,9 @@ reduce(lambda x,y:x*y,list *return function on first two elements of list and th
 filter(function, sequence) *returns sequence of items for which function is true e.g. filter(lambda x: x>5 and x<12, range(2,20))
 
 list stuff:
+list comprehension can have if statements
+double=[i*2 for i in mylist]
+doublethesmallones=[i*2 for i in mylist if i<1]
 
 ipython:
 %cpaste
