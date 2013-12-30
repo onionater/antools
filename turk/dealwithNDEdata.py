@@ -115,6 +115,7 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
     #print newmatrix
     emomatrix=newmatrix #to normalize each row, use newmatrix
     emomatrix=np.array(emomatrix)
+    f=plt.figure()
     ax=plt.subplot()
     pcolor(emomatrix, cmap='hot')
     plt.xticks(map(lambda x:x+.5, range(len(emos))),emos, rotation='vertical')

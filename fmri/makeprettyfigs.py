@@ -43,7 +43,7 @@ sec_scaler=1.3
 sec_const=0
 secfigxy=[5,10]
 
-def makeMainFig(fig,ratio,intscale):
+def makeMainFig(mainfig,ratio,intscale):
     #mainratio=findratio(main_scaler,main_const,accuracies,errors)
     maings = gridspec.GridSpec(3, 1, height_ratios=ratio)
     axisrange=[]
@@ -67,7 +67,7 @@ def makeMainFig(fig,ratio,intscale):
     mainax.set_ylabel('classification accuracy') 
     return mainfig,maings,axisrange
 
-def makeSecFig(fig,ratio, intscale):
+def makeSecFig(secfig,ratio, intscale):
     #secratio=findratio(sec_scaler,sec_const,regiondata,regionerr)
     #print secratio
     #secgs = gridspec.GridSpec(3, 1, height_ratios=secratio)
