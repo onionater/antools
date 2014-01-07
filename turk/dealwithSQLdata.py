@@ -18,6 +18,7 @@ import time
 global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit,plot
 
 #some parameters
+plot=0 #we don't need images right now
 datafile='/Users/amyskerry/tempdl.csv'
 writedir='/Users/amyskerry/Dropbox/fsfcsvs/'
 writename='turkdata.csv'
@@ -31,7 +32,7 @@ condensethresh=.9 #using binarized, so anything >0 is a win
 TRprop=.5 #more than haf the TR meeting thresh means TR is classified as win
 TR=2
 timemax=513
-countunit=.5
+countunit=.1
 ratingvects_list=[]#make one for each var of interest
 timingvects_list=[]#make one for each var of interest
 subIDs_list=[]
@@ -127,36 +128,60 @@ def checkmatches(times,rates):
             #print str(n)+': match'
             match.append(1)
     return match
+def buildtimings(t,ratingdata,useit):
+    vector=np.arange(0,timemax,countunit)
+    v=len(vector)
+    rating=np.zeros([v,1])
+    timing=np.zeros([v,1])
+    normedrating=np.zeros([v,1])
+    tdataindex=0
+    ctv=0
+    crv=0
+    stop=len(t)-1
+    if useit:
+        for tpn, tp in enumerate(np.arange(0,timemax,countunit)):
+            tp=round(tp,1)
+            if tp<=ctv:
+                timing[tpn]=tp
+                rating[tpn]=crv
+            else:
+                crv=float(ratingdata[tdataindex]) #crv is one behind because value shouldn't change until next timepoint (crt)                
+                if tdataindex<stop:
+                    tdataindex+=1
+                ctv=float(t[tdataindex]) 
+                timing[tpn]=tp
+                rating[tpn]=crv
+        timing=list(timing.T[0])
+        rating=list(rating.T[0])
+        
+    else:
+        timing=0
+        rating=0.0
+    return timing, rating 
+def normalizerating(rat):
+    if type(rat)==list:
+        rat=np.array(rat)
+        ratmean=np.mean(rat)
+        ratstd=np.std(rat)
+        n=[(x-ratmean)/ratstd for x in rat]
+    else:
+        n=0.0
+    return n
     
 def timecourseit(timingdata,ratingdata,datadict):
+    global unit
+    unit=countunit
     newtiming=[]
     newrating=[]
     normednewrating=[]
-    #datadict=datadict[datadict['use']==1]
     for nt,t in enumerate(timingdata):
-        newrating.append([])
-        newtiming.append([])
-        normednewrating.append([])
-        if datadict['use'][nt]:
-            tdataindex=0
-            ctv=0
-            crv=0
-            for tp in np.arange(0,timemax,countunit):
-                if tp<=ctv:
-                    newtiming[nt].append(tp)
-                    newrating[nt].append(crv)
-                else:
-                    crv=int(ratingdata[nt][tdataindex]) #crv is one behind because value shouldn't change until next timepoint (crt)                
-                    if tdataindex<len(t)-1:
-                        tdataindex+=1
-                    ctv=float(t[tdataindex]) 
-                    newtiming[nt].append(tp)
-                    newrating[nt].append(crv)
-        else:
-            newtiming[nt].append(0.0)
-            newrating[nt].append(0)
-        normalized=map(lambda x:(x-np.mean(newrating[nt]))/np.std(newrating[nt]), np.array(newrating[nt]))
-        normednewrating[nt]=normalized      
+        timing, rating=buildtimings(t, ratingdata[nt],datadict['use'][nt])
+        newtiming.append(timing)
+        newrating.append(rating)
+    print "raw timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")    
+    for rat in newrating:      
+        normednewrating.append(normalizerating(rat))  
+    print "normed timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")  
     return newtiming, newrating, normednewrating
     
 def getintervalratings(begin,end, time,rate):
@@ -316,7 +341,7 @@ def condenseregressors(reg,countT,tr, condensethresh, TRprop):
                 stepi=int(stepi)
                 thisbit=thisreg[stepi:int(stepi+condensefactor)]
                 winners=[i for i, element in enumerate(thisbit) if element>condensethresh]
-                if thisbit:
+                if len(thisbit)>0:
                     if len(winners)/len(thisbit):
                         condensed.append(1)
                     else:
@@ -341,7 +366,7 @@ def binarizeregs(stimdata, **kwargs):
         binarized.append(binrate)
     return binarized
 
-def printvismatrix(dims):
+def printvismatrix(dims, condensed):
     sns.set(style="nogrid")
     allvectors=[]
     for dim in dims:
@@ -374,8 +399,7 @@ def printvismatrix(dims):
 
 print "start: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
-### do the things
-plot=0 #we don't need images right now    
+### do the thingss    
 ##get your data dict
 [data,excludedtps]=extractdata(datafile)
 print "data extracted: " + time.strftime("%Y-%m-%d-%h-%m-%s")
@@ -390,6 +414,7 @@ print "timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 
 goods=asl.allindices(data['use'], 'element>0') #indices of your good subjects
+print "goods defined: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 dimlist=list(np.unique(np.array(data['dim'])))
 cblist=list(np.unique(np.array(data['cb'])))
 runlist=list(np.unique(np.array(data['batch'])))
@@ -441,9 +466,8 @@ scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'
 print ".mat written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 plt.close('all')
-
 if plot:
-    printvismatrix(dimlist)
+    printvismatrix(dimlist, binary_condensed)
     print "matrix visualized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 plt.close('all')
