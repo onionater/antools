@@ -11,10 +11,11 @@ from itertools import *
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.io
+import time
 
 #define these once for the study/database
 ### this step shouldn't really matter
-global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit
+global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit,plot
 
 #some parameters
 datafile='/Users/amyskerry/tempdl.csv'
@@ -30,7 +31,7 @@ condensethresh=.9 #using binarized, so anything >0 is a win
 TRprop=.5 #more than haf the TR meeting thresh means TR is classified as win
 TR=2
 timemax=513
-countunit=.1
+countunit=.5
 ratingvects_list=[]#make one for each var of interest
 timingvects_list=[]#make one for each var of interest
 subIDs_list=[]
@@ -131,6 +132,7 @@ def timecourseit(timingdata,ratingdata,datadict):
     newtiming=[]
     newrating=[]
     normednewrating=[]
+    #datadict=datadict[datadict['use']==1]
     for nt,t in enumerate(timingdata):
         newrating.append([])
         newtiming.append([])
@@ -139,7 +141,7 @@ def timecourseit(timingdata,ratingdata,datadict):
             tdataindex=0
             ctv=0
             crv=0
-            for tp in asl.floatrange(0,timemax,countunit):
+            for tp in np.arange(0,timemax,countunit):
                 if tp<=ctv:
                     newtiming[nt].append(tp)
                     newrating[nt].append(crv)
@@ -217,10 +219,12 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
     #avgRsq={'cbblindkey':[]}                 
     for run in runlist:
         thestring='element==[\''+run+'\']'
-        runindices=asl.allindices(datadict['batch'], thestring)  
-        f, axarr= plt.subplots(4, 1, sharex='all', figsize=[17,10])  #seperate fig foreach run
-        for i in range(0,8,2):   
-            plt.subplot(axarr[i/2])
+        runindices=asl.allindices(datadict['batch'], thestring) 
+        if plot:
+            f, axarr= plt.subplots(4, 1, sharex='all', figsize=[17,10])  #seperate fig foreach run
+        for i in range(0,8,2): 
+            if plot:
+                plt.subplot(axarr[i/2])
             dimlabels=[]
             dimboxes=[]
             for dn, dimension in enumerate(dimensionlist):
@@ -245,20 +249,22 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                             thisinterval=getintervalratings(start,stop, datadict['REALTIME'][subjn],datadict['NORMEDRATE'][subjn])
                             label='normed'
                         subjintervals.append(thisinterval)
-                rec=plt.Rectangle((0, 0), 1, 1, color=plotcolor)
-                dimboxes.append(rec)
+                if plot:
+                    rec=plt.Rectangle((0, 0), 1, 1, color=plotcolor)
+                    dimboxes.append(rec)
                 dimlabels.append(dimension +' : '+ str(subjcount)+ 'subjs')
                 subtally[cbblindkey]=subjcount
                 avgRsq[cbblindkey]=asl.pairwisecorrel(subjintervals)
-                if subjintervals:
+                if subjintervals and plot:
                     sns.tsplot(subjintervals, color=plotcolor)
                     rec=plt.Rectangle((0, 0), 1, 1, color=plotcolor)
-            if i==0:
+            if i==0 and plot:
                 plt.title('Timecourses: Run '+str(run))
                 plt.figlegend(dimboxes, dimlabels, loc='upper right')
-        figname=writedir+'fig_run'+str(run)+'_'+label+'.pdf'            
-        sns.axlabel('time (.1 sec increments)', '')
-        plt.savefig(figname)
+        if plot:
+            figname=writedir+'fig_run'+str(run)+'_'+label+'.pdf'            
+            sns.axlabel('time (.1 sec increments)', '')
+            plt.savefig(figname)
     return subtally, avgRsq
         
 def makestimaverages(datadict,useablesubjects,dimensionlist,stims, *args):
@@ -304,7 +310,7 @@ def condenseregressors(reg,countT,tr, condensethresh, TRprop):
     for thisreg in reg:
         condensefactor=tr/countT
         condensed=[]
-        if thisreg:
+        if len(thisreg)>0:
             for stepi in asl.floatrange(0,len(thisreg),condensefactor):
                 #print i
                 stepi=int(stepi)
@@ -366,18 +372,21 @@ def printvismatrix(dims):
     plt.sca(ax)
     plt.savefig([writedir+'visualizetimecourse.pdf'])
 
+print "start: " + time.strftime("%Y-%m-%d-%h-%m-%s")
+
 ### do the things
-    
+plot=0 #we don't need images right now    
 ##get your data dict
 [data,excludedtps]=extractdata(datafile)
-
+print "data extracted: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 ##reorganize to be in binned timecourses rather than lists of rate changes
 timings=data['timingvects']
 ratings=data['ratingvects']
 data['match']=checkmatches(timings,ratings)
 data['use']=list(np.array(data['err'])*np.array(data['match'])*np.array(data['cutshort'])) #find the good ones
+print "data filtered: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 [data['REALTIME'],data['REALRATE'],data['NORMEDRATE']]=timecourseit(timings,ratings,data)
-
+print "timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 
 goods=asl.allindices(data['use'], 'element>0') #indices of your good subjects
@@ -404,23 +413,38 @@ for st in stimlist:
     for i in range(4):
         vidlist.append(st+'_vid'+str(i+1))
         filenamelist.append(st[-2:]+ '_'+videonames[key][i])
+print "namingdone: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 #write data to csv file in appropriate format            
 writeRatings2csv(writename,stimlist,data)
+print "csv written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
  
 #for each video, get average across subjects 
 vid_averages=makestimaverages(data,goods,dimlist, vidlist, rawOrnormed_binarized)
+print "stims averaged: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 binarized=map(binarizeregs, vid_averages)
-condensed=condenseregressors(binarized, countunit, TR, condensethresh, TRprop) #find length of one of the useable realtimes and condense to TR    
-
+print "stims binarized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
+#vid avgs in weird list of list form. make matrix like for matlab export
+currshape=shape(np.array(vid_averages))
+newshape=[currshape[0],currshape[2]]
+vid_averages=reshape(np.array(vid_averages),newshape)
+#condense to TR units
+binary_condensed=condenseregressors(binarized, countunit, TR, condensethresh, TRprop) #find length of one of the useable realtimes and condense to TR    
+param_condensed=condenseregressors(vid_averages, countunit, TR, condensethresh, TRprop) #find length of one of the useable realtimes and condense to TR
+print "stims condensed: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 #to make some plots (one fig per run, 4 subplots-- one for each video. all dimensions on single plot)
 [numsubjs, reliablitycorrs]=makeplots(data,goods,dimlist, rawOrnormed_plot,thresh=binthresh)
+print "stims plotsmade: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
-scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'condensed':condensed,'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRsq':reliablitycorrs})
+readme='binarization based threshold of 5, no normalization'
+scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'binary_condensed':binary_condensed, 'param_condensed':param_condensed, 'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRsq':reliablitycorrs, 'readme':readme})
+print ".mat written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 plt.close('all')
 
-printvismatrix(dimlist)
+if plot:
+    printvismatrix(dimlist)
+    print "matrix visualized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 plt.close('all')
            

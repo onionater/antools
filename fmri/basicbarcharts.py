@@ -39,6 +39,7 @@ def makebarplot(thisax,data,sems,columnlabels,rowlabels,title, xaxislabel,yaxisl
     if 'ylim' in kwargs.keys():
         thisax.set_ylim(kwargs['ylim'])
     plt.tight_layout()
+    #hack
     plt.show()
 
 #general paramteres
@@ -64,11 +65,19 @@ maindata=[[-0.0711625, -0.19419375, 0.021603125, -0.1820625, -0.199090625], [-0.
 mainsems=[[0.129704618, 0.118412892, 0.087444736, 0.081304096, 0.072695351], [0.142802851, 0.145088214, 0.107697137, 0.06891566, 0.066335394], [0.187395974, 0.111756478, 0.099626759, 0.088058643, 0.086789187], [0.217171498, 0.130213675, 0.114465503, 0.083279301, 0.08355038]]
 maincolumnlabels=['dmPFC','mmPFC','vmPFC','rpSTC','lpSTC']
 
-fig, ax = plt.subplots(2, figsize=[10,10])
+#face ROI betas
+facefigtitle=''
+facedata=[[0.316785,  0.499346,  0.321708], [0.323777,  0.455269,  0.260081], [-0.057765,  0.170669,  0.093592], [-0.012396,  0.188400,  0.156185]]
+facesems=[[0.094874,  0.079807,  0.129573], [0.084540,  0.076071,  0.136143], [0.085818,  0.085562,  0.138572], [0.092070,  0.077271,  0.124083]]
+facecolumnlabels=['rmSTS','rFFA','rOFA']
+
+fig, ax = plt.subplots(3, figsize=[10,10])
 mainax=plt.subplot(ax[0])
 makebarplot(mainax,maindata,mainsems,maincolumnlabels,rows,mainfigtitle,'',yaxis,colorscheme, 'legend', ylim=[-.6,.6])
 tomax=plt.subplot(ax[1])
 makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,rows,tomfigtitle,xaxis,yaxis,colorscheme, ylim=[-.6,.6])
+faceax=plt.subplot(ax[2])
+makebarplot(faceax,facedata,facesems,facecolumnlabels,rows,facefigtitle,xaxis,yaxis,colorscheme, ylim=[-.6,.6])
 
 
 
