@@ -38,15 +38,21 @@ def binarizeregressors(stimdata, **kwargs):
     
 def pairwisecorrel(listoflists):
     if len(listoflists)>1:
+        #print "mean: "+ str([str(x) for x in np.mean(listoflists,1)])
+        #print "std: " + str([str(x) for x in np.std(listoflists,1)])
         corrs=np.corrcoef(listoflists)
+        check=np.isnan(corrs)
+        if check.any():
+           corrs=np.corrcoef(listoflists) 
         tri=np.triu(corrs)
         tri[np.diag_indices_from(tri)]=0
         tri2=tri[tri !=0]
-        tri2sq=tri2**2
-        avgRsq=np.mean(tri2sq)
+        tri2=tri2.flatten()
+        #print np.isnan(tri2)
+        avgR=np.mean(tri2)
     else:
-        avgRsq=[]
-    return avgRsq
+        avgR='ONEONLY'
+    return avgR
     
 def addlegend(colortuples, colorlabels, axis, **kwargs):
     #if using seaborn, you can get the set of colors for the plot using current_palette = sns.color_palette()

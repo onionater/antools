@@ -15,7 +15,7 @@ import time
 
 #define these once for the study/database
 ### this step shouldn't really matter
-global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit,plot
+global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit,plot,RTlag,shiftforRTlag
 
 #some parameters
 plot=0 #we don't need images right now
@@ -28,9 +28,10 @@ rawOrnormed_binarized='raw'
 rawOrnormed_plot='raw'
 binthresh=5
 propthresh=.5
-condensethresh=.9 #using binarized, so anything >0 is a win
 TRprop=.5 #more than haf the TR meeting thresh means TR is classified as win
 TR=2
+shiftforRTlag=1 #shift the timevector back by RTlag to account for RT in human rating of stimuli
+RTlag=.75
 timemax=513
 countunit=.1
 ratingvects_list=[]#make one for each var of interest
@@ -121,14 +122,14 @@ def extractdata(thefile):
 def checkmatches(times,rates):
     match=[] 
     for n,t in enumerate(times): 
-        if len(t)!=len(rates[n]):
+        if len(t)!=len(rates[n]) or float(max(rates[n]))==0.0:
             #print str(n)+': mismatch'
             match.append(0)
         else:
             #print str(n)+': match'
             match.append(1)
     return match
-def buildtimings(t,ratingdata,useit):
+def buildtimings(t,ratingdata):
     vector=np.arange(0,timemax,countunit)
     v=len(vector)
     rating=np.zeros([v,1])
@@ -138,49 +139,55 @@ def buildtimings(t,ratingdata,useit):
     ctv=0
     crv=0
     stop=len(t)-1
-    if useit:
-        for tpn, tp in enumerate(np.arange(0,timemax,countunit)):
-            tp=round(tp,1)
-            if tp<=ctv:
-                timing[tpn]=tp
-                rating[tpn]=crv
-            else:
-                crv=float(ratingdata[tdataindex]) #crv is one behind because value shouldn't change until next timepoint (crt)                
-                if tdataindex<stop:
-                    tdataindex+=1
-                ctv=float(t[tdataindex]) 
-                timing[tpn]=tp
-                rating[tpn]=crv
-        timing=list(timing.T[0])
-        rating=list(rating.T[0])
-        
-    else:
-        timing=0
-        rating=0.0
+    for tpn, tp in enumerate(np.arange(0,timemax,countunit)):
+        tp=round(tp,1)
+        if tp<=ctv:
+            timing[tpn]=tp
+            rating[tpn]=crv
+        else:
+            crv=float(ratingdata[tdataindex]) #crv is one behind because value shouldn't change until next timepoint (crt)                
+            if tdataindex<stop:
+                tdataindex+=1
+            ctv=float(t[tdataindex]) 
+            timing[tpn]=tp
+            rating[tpn]=crv
+    timing=list(timing.T[0])
+    rating=list(rating.T[0])
     return timing, rating 
 def normalizerating(rat):
-    if type(rat)==list:
-        rat=np.array(rat)
-        ratmean=np.mean(rat)
-        ratstd=np.std(rat)
-        n=[(x-ratmean)/ratstd for x in rat]
-    else:
-        n=0.0
+       # rat=np.array(rat)
+    ratmean=np.mean(rat)
+    ratstd=np.std(rat)
+    n=[(x-ratmean)/ratstd for x in rat]
     return n
     
 def timecourseit(timingdata,ratingdata,datadict):
     global unit
     unit=countunit
+    chop=int(RTlag/countunit)
     newtiming=[]
     newrating=[]
     normednewrating=[]
     for nt,t in enumerate(timingdata):
-        timing, rating=buildtimings(t, ratingdata[nt],datadict['use'][nt])
-        newtiming.append(timing)
-        newrating.append(rating)
+        if datadict['use'][nt]:
+            timing, rating=buildtimings(t, ratingdata[nt])
+            rating=reshape(rating,[len(rating),])
+            #timing=reshape(timing,[len(timing),])
+            if shiftforRTlag:
+                extra=np.zeros(chop)+rating[-1] #we will assume that the last RTlag seconds are the same as the last response
+                rating=np.concatenate([rating,extra])
+                rating=rating[chop:]
+            newtiming.append(timing)
+            newrating.append(rating)
+        else:
+            newtiming.append(0)
+            newrating.append(0)
     print "raw timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")    
-    for rat in newrating:      
-        normednewrating.append(normalizerating(rat))  
+    for rat in newrating:   
+        if type(rat)==int:
+            normednewrating.append(0)
+        else:
+            normednewrating.append(normalizerating(rat))  
     print "normed timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")  
     return newtiming, newrating, normednewrating
     
@@ -258,6 +265,7 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                 subjintervals=[]
                 plotcolor=colors[dn]
                 subjcount=0
+                print len(useablesubjects)
                 for subjn, goodsubj in enumerate(datadict['use']): 
                     cb=datadict['cb'][subjn][0]
                     key='r'+run+cb+'_timing'
@@ -279,7 +287,12 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                     dimboxes.append(rec)
                 dimlabels.append(dimension +' : '+ str(subjcount)+ 'subjs')
                 subtally[cbblindkey]=subjcount
+                for subjn, subj in enumerate(subjintervals):
+                    if np.mean(subj)==0.0:
+                        print str(subjn)
+                        print "subjs: "+str(np.mean(subj))
                 avgRsq[cbblindkey]=asl.pairwisecorrel(subjintervals)
+                #print [len(x) for x in subjintervals]
                 if subjintervals and plot:
                     sns.tsplot(subjintervals, color=plotcolor)
                     rec=plt.Rectangle((0, 0), 1, 1, color=plotcolor)
@@ -330,7 +343,7 @@ def makestimaverages(datadict,useablesubjects,dimensionlist,stims, *args):
     return allavgs
 
 #this function needs to be written
-def condenseregressors(reg,countT,tr, condensethresh, TRprop):
+def condenseregressors(reg,countT,tr, TRprop, binary):
     allcondensed=[]    
     for thisreg in reg:
         condensefactor=tr/countT
@@ -340,12 +353,15 @@ def condenseregressors(reg,countT,tr, condensethresh, TRprop):
                 #print i
                 stepi=int(stepi)
                 thisbit=thisreg[stepi:int(stepi+condensefactor)]
-                winners=[i for i, element in enumerate(thisbit) if element>condensethresh]
+                winners=[i for i, element in enumerate(thisbit) if element>0]
                 if len(thisbit)>0:
-                    if len(winners)/len(thisbit):
-                        condensed.append(1)
+                    if binary:
+                        if len(winners)/len(thisbit):
+                            condensed.append(1)
+                        else:
+                            condensed.append(0)
                     else:
-                        condensed.append(0)
+                        condensed.append(np.mean(thisbit))
             if len(thisreg)-int(stepi+condensefactor) !=0:
                 print 'error: video/TR mismatch'
             allcondensed.append(condensed)
@@ -411,7 +427,9 @@ data['use']=list(np.array(data['err'])*np.array(data['match'])*np.array(data['cu
 print "data filtered: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 [data['REALTIME'],data['REALRATE'],data['NORMEDRATE']]=timecourseit(timings,ratings,data)
 print "timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")
-
+for vidn, vid in enumerate(data['REALRATE']):
+    if data['use'][vidn]:
+        print 'data: ' + str(np.mean(vid))
 
 goods=asl.allindices(data['use'], 'element>0') #indices of your good subjects
 print "goods defined: " + time.strftime("%Y-%m-%d-%h-%m-%s")
@@ -446,6 +464,8 @@ print "csv written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
  
 #for each video, get average across subjects 
 vid_averages=makestimaverages(data,goods,dimlist, vidlist, rawOrnormed_binarized)
+for vid in vid_averages:
+    print 'vid: ' + str(np.mean(vid))
 print "stims averaged: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 binarized=map(binarizeregs, vid_averages)
 print "stims binarized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
@@ -454,16 +474,17 @@ currshape=shape(np.array(vid_averages))
 newshape=[currshape[0],currshape[2]]
 vid_averages=reshape(np.array(vid_averages),newshape)
 #condense to TR units
-binary_condensed=condenseregressors(binarized, countunit, TR, condensethresh, TRprop) #find length of one of the useable realtimes and condense to TR    
-param_condensed=condenseregressors(vid_averages, countunit, TR, condensethresh, TRprop) #find length of one of the useable realtimes and condense to TR
+binary_condensed=condenseregressors(binarized, countunit, TR, TRprop, 1) #find length of one of the useable realtimes and condense to TR    
+param_condensed=condenseregressors(vid_averages, countunit, TR, TRprop, 0) #find length of one of the useable realtimes and condense to TR
 print "stims condensed: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 #to make some plots (one fig per run, 4 subplots-- one for each video. all dimensions on single plot)
-[numsubjs, reliablitycorrs]=makeplots(data,goods,dimlist, rawOrnormed_plot,thresh=binthresh)
+[numsubjs, reliabilitycorrs]=makeplots(data,goods,dimlist, rawOrnormed_plot,thresh=binthresh)
 print "stims plotsmade: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
 readme='binarization based threshold of 5, no normalization'
-scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'binary_condensed':binary_condensed, 'param_condensed':param_condensed, 'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRsq':reliablitycorrs, 'readme':readme})
+scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'binary_condensed':binary_condensed, 'param_condensed':param_condensed, 'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRvals':reliabilitycorrs, 'readme':readme})
 print ".mat written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
+#param not param and reliablity wrong...
 
 plt.close('all')
 if plot:
