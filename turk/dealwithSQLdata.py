@@ -18,7 +18,7 @@ import time
 global ratingvects_list,timingvects_list,subIDs_list,run_list,cb_list,dim_list,final_list,err_list,cutshort_list,allmyvars,vardict,labeldict,inclusioncol,timingcol,datacols, timemax, countunit,plot,RTlag,shiftforRTlag
 
 #some parameters
-plot=0 #we don't need images right now
+plot=1 #we don't need images right now
 datafile='/Users/amyskerry/tempdl.csv'
 writedir='/Users/amyskerry/Dropbox/fsfcsvs/'
 writename='turkdata.csv'
@@ -246,7 +246,7 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
     if 'normed' in args:
         raw=0
     subtally={}
-    avgRsq={}
+    avgR={}
    # subtally={'cbblindkey':[]}
     #avgRsq={'cbblindkey':[]}                 
     for run in runlist:
@@ -265,13 +265,12 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                 subjintervals=[]
                 plotcolor=colors[dn]
                 subjcount=0
-                print len(useablesubjects)
                 for subjn, goodsubj in enumerate(datadict['use']): 
                     cb=datadict['cb'][subjn][0]
                     key='r'+run+cb+'_timing'
                     cbblindkey='r'+run+'x_v'+str(i/2+1)+'_'+ dimension+'_timing'
                     times=videodict[key]
-                    if subjn in runindices and subjn in dimindices and subjn in useablesubjects:
+                    if subjn in runindices and subjn in dimindices and goodsubj:
                         subjcount+=1
                         start=round(times[i],1)
                         stop=round(times[i+1],1)
@@ -281,17 +280,16 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
                         else:
                             thisinterval=getintervalratings(start,stop, datadict['REALTIME'][subjn],datadict['NORMEDRATE'][subjn])
                             label='normed'
+#                        if np.mean(thisinterval)==0.0:
+#                            print str(subjn)
+#                            print "subjs: "+str(np.mean(thisinterval))
                         subjintervals.append(thisinterval)
                 if plot:
                     rec=plt.Rectangle((0, 0), 1, 1, color=plotcolor)
                     dimboxes.append(rec)
                 dimlabels.append(dimension +' : '+ str(subjcount)+ 'subjs')
                 subtally[cbblindkey]=subjcount
-                for subjn, subj in enumerate(subjintervals):
-                    if np.mean(subj)==0.0:
-                        print str(subjn)
-                        print "subjs: "+str(np.mean(subj))
-                avgRsq[cbblindkey]=asl.pairwisecorrel(subjintervals)
+                avgR[cbblindkey]=asl.pairwisecorrel(subjintervals,1)
                 #print [len(x) for x in subjintervals]
                 if subjintervals and plot:
                     sns.tsplot(subjintervals, color=plotcolor)
@@ -303,7 +301,7 @@ def makeplots(datadict,useablesubjects,dimensionlist,*args, **kwargs):
             figname=writedir+'fig_run'+str(run)+'_'+label+'.pdf'            
             sns.axlabel('time (.1 sec increments)', '')
             plt.savefig(figname)
-    return subtally, avgRsq
+    return subtally, avgR
         
 def makestimaverages(datadict,useablesubjects,dimensionlist,stims, *args):
     allavgs=[]
@@ -427,16 +425,15 @@ data['use']=list(np.array(data['err'])*np.array(data['match'])*np.array(data['cu
 print "data filtered: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 [data['REALTIME'],data['REALRATE'],data['NORMEDRATE']]=timecourseit(timings,ratings,data)
 print "timecourses made: " + time.strftime("%Y-%m-%d-%h-%m-%s")
-for vidn, vid in enumerate(data['REALRATE']):
-    if data['use'][vidn]:
-        print 'data: ' + str(np.mean(vid))
+#for vidn, vid in enumerate(data['REALRATE']):
+#    if data['use'][vidn]:
+#        print 'data: ' + str(np.mean(vid))
 
 goods=asl.allindices(data['use'], 'element>0') #indices of your good subjects
 print "goods defined: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 dimlist=list(np.unique(np.array(data['dim'])))
 cblist=list(np.unique(np.array(data['cb'])))
 runlist=list(np.unique(np.array(data['batch'])))
-
 
 ### write now the naming of subjs contains information about cb order, but that becomes irrelevant in reatime and real rate
 names=data['subIDs']
@@ -464,8 +461,6 @@ print "csv written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
  
 #for each video, get average across subjects 
 vid_averages=makestimaverages(data,goods,dimlist, vidlist, rawOrnormed_binarized)
-for vid in vid_averages:
-    print 'vid: ' + str(np.mean(vid))
 print "stims averaged: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 binarized=map(binarizeregs, vid_averages)
 print "stims binarized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
@@ -481,7 +476,7 @@ print "stims condensed: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 [numsubjs, reliabilitycorrs]=makeplots(data,goods,dimlist, rawOrnormed_plot,thresh=binthresh)
 print "stims plotsmade: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 
-readme='binarization based threshold of 5, no normalization'
+readme='binarization based threshold of 5, no normalization, shifted by RTlag of .75'
 scipy.io.savemat(writedir+rawOrnormed_binarized+regname,{'binarized':binarized,'binary_condensed':binary_condensed, 'param_condensed':param_condensed, 'vidavgs': vid_averages, 'stimnames':vidlist, 'videonames': filenamelist, 'normedOrRaw':rawOrnormed_binarized, 'numsubjsPerStim':numsubjs, 'reliabilityRvals':reliabilitycorrs, 'readme':readme})
 print ".mat written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 #param not param and reliablity wrong...
