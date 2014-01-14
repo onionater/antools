@@ -13,6 +13,7 @@ import matplotlib.font_manager as fmnger
 import seaborn as sns
 import scipy.io
 from sklearn import svm, cluster, decomposition
+import itertools
 
 global subdate, check, explicit, subjid
 subdate='submission_date'
@@ -126,18 +127,39 @@ def getemoavgs(keepers, emolabels, dims, **kwargs):
             emovects.append(dimavg)
             newlabels.append(la)
     return emovects, newlabels, dims   
-def plotcorrmatrix(title, axis, datamatrix, suffix,figuresize=[8,8]):
+def plotcorrmatrix(title, axis, datamatrix, suffix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu'):
     fig=plt.figure(figsize=figuresize)   
     ax=plt.subplot()
-    plt.pcolor(np.corrcoef(datamatrix), cmap='hot') #symmetrical by necessity
+    im=plt.pcolor(np.corrcoef(datamatrix), vmin=cmin, vmax=cmax, cmap=cmapspec) #symmetrical by necessity
+    plt.colorbar(im)
     plt.xticks(map(lambda x:x+.5, range(len(axis))),axis, rotation='vertical')
     plt.yticks(map(lambda x:x+.5, range(len(axis))),axis)
     ax.set_xlabel(title)
     fig.savefig('/Users/amyskerry/Dropbox/antools/turk/NDE_dim/'+suffix)
-def plotweightmatrix(title, xaxis, yaxis, datamatrix, suffix,figuresize=[8,8]):
+def crossmatrixcorr(data):
+    versions=range(len(data))
+    combos=[]
+    for combo in itertools.combinations(versions,2):
+        combos.append(combo)
+    corrmatrices=[]
+    for c in combos:
+        dataA=data[c[0]]
+        dataB=data[c[1]]
+        corrmatrix=[]
+        for rowA in dataA:
+            corrmatrix.append(np.array([np.corrcoef(rowA,rowB)[0,1] for rowB in dataB]))
+        corrmatrices.append(corrmatrix)
+    corrmeans=np.mean(np.array(corrmatrices),0)
+    return corrmeans
+def plotweightmatrix(title, xaxis, yaxis, datamatrix, suffix,figuresize=[8,8],cmin=[],cmax=[], cmapspec='hot'):
     fig=plt.figure(figsize=figuresize)   
     ax=plt.subplot()
-    plt.pcolor(np.array(datamatrix), cmap='hot') #symmetrical by necessity
+    if type(cmin)!=list and type(cmax)!=list:
+        im=plt.pcolor(np.array(datamatrix),vmin=cmin,vmax=cmax,cmap=cmapspec)
+        plt.colorbar(im)
+    else:    
+        im=plt.pcolor(np.array(datamatrix), cmap=cmapspec) #symmetrical by necessity
+        plt.colorbar(im)
     plt.xticks(map(lambda x:x+.5, range(len(xaxis))),xaxis, rotation='vertical')
     plt.yticks(map(lambda x:x+.5, range(len(yaxis))),yaxis)
     ax.set_xlabel(title)

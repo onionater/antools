@@ -48,6 +48,9 @@ keepers=ndim.assignCVfolds(keepers,qlabels,emolabels)
 #compute item, emo, and dim avgs
 [itemavgs,itemlabels, dimlabels, itememos]=ndim.getitemavgs(keepers,orderedlabels, dims)
 [emoavgs, emolabels, dimlabels]=ndim.getemoavgs(keepers,orderedemos, dims)
+#for row in emoavgs:
+#    printables.append([round(x) for x in row])
+#print printables
 ndim.plotweightmatrix('emo-avgs x dimensions)', dimlabels, emolabels, emoavgs, 'emosxdims_'+suffix+'.png')
 dimavgs=np.array(itemavgs).T
 ndim.plotcorrmatrix('item-wise correlations (of avg item vectors of dim scores)', orderedlabels, itemavgs, 'items_'+suffix+'.png')
@@ -83,7 +86,7 @@ for i in cvfolds:
     [theseitemavgs,theseitemlabels, thesedimlabels, theseitememos]=ndim.getitemavgs(keepers,orderedlabels, dims, **{cvtype:i+1})
     [theseemoavgs, theseemolabels, thesedimlabels]=ndim.getemoavgs(keepers,orderedemos, dims, **{cvtype:i+1})
     [theseorderedlabels, theseorderedemos]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos
-    #plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
+    ndim.plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
 #    
 ## classify, cross validate across split halves    
 cvfolds=range(2)
@@ -94,10 +97,12 @@ for i in cvfolds:
     [theseitemavgs,theseitemlabels, thesedimlabels, theseitememos]=ndim.getitemavgs(keepers,orderedlabels, dims, **{cvtype:i+1})
     [theseemoavgs, theseemolabels, thesedimlabels]=ndim.getemoavgs(keepers,orderedemos, dims, **{cvtype:i+1})
     [theseorderedlabels, theseorderedemos]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos
-    ##plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
+    ndim.plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
     alldata.append(theseemoavgs)
     alllabels.append(theseemolabels)
 [classdeets1, accuracies1, chance1]= ndim.classify(cvfolds, alldata, alllabels)
+crosscorrs=ndim.crossmatrixcorr(alldata)
+ndim.plotweightmatrix('emo-wise correlations (across halves)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xhalves'+suffix+'.png', figuresize=[11,7])
 #    
 ## classify cross validate across items
 cvfolds=range(5)
@@ -108,7 +113,9 @@ for i in cvfolds:
     [theseitemavgs,theseitemlabels, thesedimlabels, theseitememos]=ndim.getitemavgs(keepers,orderedlabels, dims, **{cvtype:i+1})
     [theseemoavgs, theseemolabels, thesedimlabels]=ndim.getemoavgs(keepers,orderedemos, dims, **{cvtype:i+1})
     [theseorderedlabels, theseorderedemos]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos 
-    ##plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
+    ##ndim.plotcorrmatrix('emo-wise correlations (of avg dimension vectors)', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png')
     alldata.append(theseemoavgs)
     alllabels.append(theseemolabels)
 [classdeets2, accuracies2, chance2]= ndim.classify(cvfolds, alldata, alllabels)
+crosscorrs=ndim.crossmatrixcorr(alldata)
+ndim.plotweightmatrix('emo-wise correlations (across items)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xitems'+suffix+'.png', figuresize=[11,7])
