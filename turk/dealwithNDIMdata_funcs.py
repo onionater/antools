@@ -127,7 +127,7 @@ def getemoavgs(keepers, emolabels, dims, **kwargs):
             emovects.append(dimavg)
             newlabels.append(la)
     return emovects, newlabels, dims   
-def plotcorrmatrix(title, axis, datamatrix, suffix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu'):
+def plotcorrmatrix(title, axis, datamatrix, suffix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu_r'):
     fig=plt.figure(figsize=figuresize)   
     ax=plt.subplot()
     im=plt.pcolor(np.corrcoef(datamatrix), vmin=cmin, vmax=cmax, cmap=cmapspec) #symmetrical by necessity

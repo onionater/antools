@@ -21,7 +21,7 @@ def extractdata(datafile):
         for subjnum, row in enumerate(reader):
             if subjnum==0:
                 sqlnames=row
-                print 'varnames in sql: '+str(sqlnames)
+                #print 'varnames in sql: '+str(sqlnames)
                 incindex=sqlnames.index('submission_date')
             else:
                 subjdata.append(row)
@@ -33,12 +33,12 @@ def findbads(datamatrix, varnames):
         checkindex=varnames.index('q86')
         answerindex=varnames.index('correctA86')
         if subj[checkindex]!='Neutral':
-            print subj[answerindex]+ ': ' + subj[checkindex]
+            #print subj[answerindex]+ ': ' + subj[checkindex]
             badsubjs[subjnum]=badsubjs[subjnum]+1
         checkindex=varnames.index('q87')
         answerindex=varnames.index('correctA87')
         if subj[checkindex]!='Neutral':
-            print subj[answerindex]+ ': ' + subj[checkindex]
+            #print subj[answerindex]+ ': ' + subj[checkindex]
             badsubjs[subjnum]=badsubjs[subjnum]+1
     return badsubjs
 
@@ -71,7 +71,7 @@ def scoreitems(sqlnames,datamatrix,numitems,*args):
                     itemacc.append(int(subj[respcol]==subj[anscol]))
                     groupjudgecount[qn]=groupjudgecount[qn]+1
                 else:
-                    itemacc.append(nan)
+                    itemacc.append(np.nan)
             groupscores.append(np.array(itemacc))
             groupresponses.append(itemresponses)
             if len(itemlabels)>1:
@@ -117,7 +117,8 @@ def condenseaccuracies(sqlnames,stimavgs,answers,responses, *args):
     emomatrix=np.array(emomatrix)
     f=plt.figure()
     ax=plt.subplot()
-    pcolor(emomatrix, cmap='hot')
+    im=plt.pcolor(emomatrix, cmap='hot')
+    plt.colorbar(im)
     plt.xticks(map(lambda x:x+.5, range(len(emos))),emos, rotation='vertical')
     plt.yticks(map(lambda x:x+.5, range(len(emos))),emos)
     ax.set_ylabel('correct emotion')
