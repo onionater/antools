@@ -34,21 +34,23 @@ def makebarplot(thisax,data,sems,columnlabels,rowlabels,title, xaxislabel,yaxisl
     plt.xticks(xticks, (columnlabels))
     thisax.set_xlim([minx-bar_width*2, maxx+bar_width])
     if 'legend' in args:
-        plt.legend(loc=1)
+        plt.legend(loc=2, shadow=True)
         #plt.figlegend()
     if 'ylim' in kwargs.keys():
         thisax.set_ylim(kwargs['ylim'])
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.show()
 
 #general paramteres
-rows=['face_h','face_u','context_h','context_u']
-colorscheme= sns.color_palette('hls', len(rows))
+rows=['facial expressions: pos','facial expressions: neg','situations: pos','situations: neg']
+#colorscheme= sns.color_palette('hls', len(rows))
+#colorscheme=sns.color_palette(['#3E7C10','#96CE80','#990000','#C26666'],4)
+colorscheme=sns.color_palette(['#3E7C10','#96CE80','#010199','#6666C2'],4)
 xaxis='ROI'
 yaxis='Beta value'
-font = {'family' : 'arial',
+font = {'family' : 'Gill Sans',
         'weight':'regular',
-        'size'   : 42}
+        'size'   : 50}
 
 matplotlib.rc('font', **font)
 
@@ -66,9 +68,9 @@ maincolumnlabels=['dmPFC','mmPFC','vmPFC','rpSTC','lpSTC','rTPJ','lTPJ']
 
 fig, ax = plt.subplots(2, figsize=[10,10])
 mainax=plt.subplot(ax[0])
-makebarplot(mainax,maindata,mainsems,maincolumnlabels,rows,mainfigtitle,'',yaxis,colorscheme, 'legend', ylim=[-.6,.6])
+makebarplot(mainax,maindata,mainsems,maincolumnlabels,rows,mainfigtitle,'',yaxis,colorscheme, 'legend', ylim=[-.6,.7])
 tomax=plt.subplot(ax[1])
-makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,rows,tomfigtitle,xaxis,yaxis,colorscheme, ylim=[-.6,.6])
+makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,rows,tomfigtitle,xaxis,yaxis,colorscheme, ylim=[-.4,.7])
 
 
 

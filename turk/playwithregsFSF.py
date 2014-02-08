@@ -4,14 +4,23 @@ Created on Wed Jan 15 16:19:27 2014
 
 @author: amyskerry
 """
+##CORRESPONDING IPNB=FSF_REGRESSORS
 import scipy.io
 import numpy as p
 import matplotlib.pyplot as plt
+import statsmodels.stats.outliers_influence
 
-def plotcorrmatrix(title, axis, datamatrix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu'):
+def plotcorrmatrix(title, axis, datamatrix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu', onecorner=0):
     fig=plt.figure(figsize=figuresize)   
     ax=plt.subplot()
-    im=plt.pcolor(np.corrcoef(datamatrix), vmin=cmin, vmax=cmax, cmap=cmapspec) #symmetrical by necessity
+    corrmatrix=np.corrcoef(datamatrix)
+    if onecorner:
+        tri=np.triu(corrmatrix)
+        tri[tri==0]=np.nan
+        pltmatrix=tri
+    else:
+        pltmatrix=corrmatrix
+    im=plt.pcolor(pltmatrix, vmin=cmin, vmax=cmax, cmap=cmapspec) #symmetrical by necessity
     plt.colorbar(im)
     plt.xticks(map(lambda x:x+.5, range(len(axis))),axis, rotation='vertical')
     plt.yticks(map(lambda x:x+.5, range(len(axis))),axis)
@@ -36,8 +45,13 @@ for c in conds:
     bigtimecourses.append(binarylist)
 
 corrmatrix=np.corrcoef(bigtimecourses)
+#plot correlation between regressors
 plotcorrmatrix('regressor collinearity', conds, bigtimecourses,figuresize=[5,4],cmin=-1,cmax=1, cmapspec='RdYlBu_r')
-frequency=[sum(x)/len(x) for x in bigtimecourses]
-string='frequencies: '
+frequency=[float(sum(x))/len(x) for x in bigtimecourses]
+string='proportion of timepoints: \n'
 for cn,c in enumerate(conds):
-    string.join(c+ ' ('+str(frequency[cn])+'), ')
+    string=string+c+ ': '+str(round(frequency[cn],2))+'\n '
+print string
+print "variance inflation factors" #VIF=a measure for the increase of the variance of the parameter estimates if an additional variable, given by exog_idx is added to the linear regression... one recommendation is that VIF > 5 is highly collinear with the other explanatory variables, and the parameter estimates will have large standard errors
+for inum, i in enumerate(conds):
+    print i+': ' + str(statsmodels.stats.outliers_influence.variance_inflation_factor(np.array(bigtimecourses).T, inum))

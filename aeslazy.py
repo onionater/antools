@@ -36,7 +36,7 @@ def binarizeregressors(stimdata, **kwargs):
         binarized.append(binrate)
     return binarized
     
-def pairwisecorrel(listoflists):
+def pairwisecorrel(listoflists,nan2one):
     if len(listoflists)>1:
         #print "mean: "+ str([str(x) for x in np.mean(listoflists,1)])
         #print "std: " + str([str(x) for x in np.std(listoflists,1)])
@@ -47,6 +47,8 @@ def pairwisecorrel(listoflists):
         tri=np.triu(corrs)
         tri[np.diag_indices_from(tri)]=0
         tri2=tri[tri !=0]
+        if nan2one:
+            tri2[np.isnan(tri2)]=1 #assume that nans are the result of correlating two unchanging vectors. we want to think of that as correlation=1
         tri2=tri2.flatten()
         #print np.isnan(tri2)
         avgR=np.mean(tri2)

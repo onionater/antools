@@ -4,6 +4,7 @@ Created on Thu Dec 26 13:13:29 2013
 
 @author: amyskerry
 """
+##CORRESPONDING IPNB=NDIM
 import csv
 import aeslazy as asl
 import numpy as np
