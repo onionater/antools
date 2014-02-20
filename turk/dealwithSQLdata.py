@@ -462,7 +462,9 @@ print "csv written: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 #for each video, get average across subjects 
 vid_averages=makestimaverages(data,goods,dimlist, vidlist, rawOrnormed_binarized)
 print "stims averaged: " + time.strftime("%Y-%m-%d-%h-%m-%s")
-binarized=map(binarizeregs, vid_averages)
+binarized=[]
+for vid_avg_instance in vid_averages:
+    binarized.append(binarizeregs(vid_avg_instance, thresh=binthresh))
 print "stims binarized: " + time.strftime("%Y-%m-%d-%h-%m-%s")
 #vid avgs in weird list of list form. make matrix like for matlab export
 currshape=shape(np.array(vid_averages))

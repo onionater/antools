@@ -161,6 +161,7 @@ for labeln, label in enumerate(labels):
     for roi in rois:
     #R style, since statsmodel can't do repeated measures yet. treats subcol as the index for repeated measurements
         fml = roi+' ~ emo * stim + Error('+subjcol+'/ (emo + stim +emo * stim))'  #  formula string. note that you need to explicitly specify main effects an interaction in the error term, for some reason. this formula checks out against output on vassarstats
+        print fml        
         dfr = com.convert_to_r_dataframe(df, True)  # convert from pandas to R and make string columns factors
         fml_ = Formula(fml)  #  make a formula    obect
         result=base.summary(stats.aov(fml_, dfr))
