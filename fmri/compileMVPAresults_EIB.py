@@ -139,7 +139,7 @@ for analysis in analysissets:
                     axislabels.append(labeldict[disc])
         base=np.array([0 for el in allplotsmean])
         colors=['g','b','r']
-        fig, axis = plt.subplots(1, figsize=[3,4]) 
+        fig, axis = plt.subplots(1, figsize=[1,4]) 
         for valn,val in enumerate(allplotsmean):
             means=[el for el in base]
             means[valn]=val
@@ -147,10 +147,15 @@ for analysis in analysissets:
             sems[valn]=allplotssem[valn]
             color=colors[valn]
             axis.errorbar(np.arange(len(means)), np.array(means), yerr=np.array(sems),elinewidth=3, markersize=12, fmt='o', color=color) 
-        axis.locator_params(nbins=len(allplotsmean)+2)        
+            #axis.errorbar(np.arange(len(means[0:2])), np.array(means[0:2]), yerr=np.array(sems[0:2]),elinewidth=3, markersize=12, fmt='o', color=color) 
+        axis.locator_params(nbins=len(allplotsmean)+2)
+        #axis.locator_params(nbins=2,axis='x')
+        #axis.set_xticklabels(axislabels[0:2], visible=0)
         axis.set_xticklabels(axislabels, visible=1)
         xlim_deets=[-.25, len(allplotsmean)-.75]
+        #xlim_deets=[-.25, len(allplotsmean[0:2])-.75]
         axis.set_xlim(xlim_deets)
         axis.set_ylim([theseylims[0], theseylims[1]])
         axis.set_title(roi)
         axis.plot(xlim_deets, [chance,chance], ls='dashed', color='orange')
+        plt.tight_layout()

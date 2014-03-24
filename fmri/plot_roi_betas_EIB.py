@@ -42,6 +42,7 @@ class data():
 
 def collapseconds(thisroi,thisroiname,conditionmushes):
     conditions=conditionmushes.keys()
+    conditions=['faces_positive', 'faces_negative', 'situation_positive', 'situation_negative']#hack to enforce order
     d=data(thisroiname)
     subjects=list(set([row[indices['subjid']] for row in thisroi]))
     d.numsubj=len(subjects)
@@ -86,12 +87,13 @@ def makebarplot(thisax,data,sems,columnlabels,rowlabels,title, xaxislabel,yaxisl
     maxx=tickint+index[-1]+bar_width*len(data)
     for nd, d in enumerate(data):
         x=tickint+index+bar_width*nd
+        newlabel=legendmapper[rowlabels[nd]]
         plt.bar(x, d, bar_width,
                      alpha=opacity,
                      color=colors[nd],
                      yerr=sems[nd],
                      error_kw=error_config,
-                     label=rowlabels[nd])
+                     label=newlabel)
     plt.xlabel(xaxislabel)
     plt.ylabel(yaxislabel)
     plt.title(title)
@@ -116,6 +118,8 @@ def makebarplot(thisax,data,sems,columnlabels,rowlabels,title, xaxislabel,yaxisl
 
 rootdir='/Users/amyskerry/Documents/analysis2/EIB_NT_ROI_MAGNITUDE/'
 roilist=['RTPJ','LTPJ','PC','LSTS','RSTS','DMPFC','MMPFC','VMPFC','rOFA','rFFA','rSTS','lSTS']
+global legendmapper
+legendmapper={'faces_positive': 'faces: positive', 'faces_negative': 'faces: negative', 'situation_positive': 'situation: positive', 'situation_negative': 'situation: negative'}
 
 foundfiles=findfiles(rootdir,'BETA_',roilist)
 roidata={}
@@ -142,28 +146,28 @@ xaxis='ROI'
 yaxis='Beta value'
 rows=conditionmushes.keys()
 #colorscheme= sns.color_palette('deep', len(rows))
-colorscheme=sns.color_palette(['#010199','#6666C2','#3E7C10','#96CE80'],4)
+colorscheme=sns.color_palette(['#3E7C10','#96CE80','#010199','#6666C2'],4)
 #specifi to tomrois
 #want more intuitive ordering
-tomrows=['situation_positive', 'situation_negative', 'faces_positive','faces_negative']
+tomrows=['faces_positive','faces_negative','situation_positive', 'situation_negative']
 tomax=plt.subplot(ax[0])
 tomcolumnlabels=roisummaries.keys()
 #want more intuitive ordering
-tomcolumnlabels=['DMPFC_tomloc', 'MMPFC_tomloc', 'VMPFC_tomloc', 'lSTS_peelenpeak','rSTS_peelenflip','RTPJ_tomloc', 'LTPJ_tomloc']
+tomcolumnlabels=['DMPFC_tomloc', 'MMPFC_tomloc', 'VMPFC_tomloc', 'rSTS_peelenflip','lSTS_peelenpeak']
 tomdata=[]
 tomsems=[]
 for cond in tomrows:
     tomdata.append([getattr(roisummaries[key],cond+'MEAN') for key in tomcolumnlabels])
     tomsems.append([getattr(roisummaries[key],cond+'WITHINSUBJSEM') for key in tomcolumnlabels])
-makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,tomrows,figtitle,'',yaxis,colorscheme[:len(tomrows)], 'legend', ylim=[-1,1.5])
+makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,tomrows,figtitle,'',yaxis,colorscheme[:len(tomrows)], 'legend', ylim=[-1,1.75])
 plt.plot([0,8], [0,0], color='#A9B9D2')
 #faceroi
 #want more intuitive ordering
-facerows=['situation_positive', 'situation_negative', 'faces_positive','faces_negative']
+facerows=['faces_positive','faces_negative','situation_positive', 'situation_negative']
 faceax=plt.subplot(ax[1])
 facecolumnlabels=roisummaries.keys()
 #want more intuitive ordering
-facecolumnlabels=['PC_tomloc', 'RSTS_tomloc','LSTS_tomloc', 'rOFA_kanparcel','rFFA_kanparcel', 'rSTS_kanparcel']
+facecolumnlabels=['rSTS_kanparcel', 'rFFA_kanparcel', 'rOFA_kanparcel', 'RTPJ_tomloc', 'LTPJ_tomloc', 'RSTS_tomloc', 'LSTS_tomloc', 'PC_tomloc']
 facedata=[]
 facesems=[]
 for cond in facerows:

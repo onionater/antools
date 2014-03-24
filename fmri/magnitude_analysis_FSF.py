@@ -37,7 +37,7 @@ def findfiles(rootdir,mainkey,keylist,version):
     foundfiles=[]
     for roi in roilist:
         os.chdir(rootdir)
-        for files in glob.glob(mainkey+'*'+roi +'*'+version+'.csv'):
+        for files in glob.glob(mainkey+'*'+roi +'*_'+version+'.csv'):
             foundfiles.append(files)
     return foundfiles
 
@@ -48,27 +48,27 @@ class data():
 
 def collapseconds(thisroi,thisroiname,conditionmushes):
     conditions=conditionmushes.keys()
-    d=data(thisroiname)
+    da=data(thisroiname)
     subjects=list(set([row[indices['subjid']] for row in thisroi]))
     if subject_subset=='all':
         pass
     else:
         subjects=subjects[subject_subset[0]:subject_subset[1]]
-    d.numsubj=len(subjects)
-    for c in conditions:
-        relcs=conditionmushes[c]
+    da.numsubj=len(subjects)
+    for cond in conditions:
+        relcs=conditionmushes[cond]
         subjindvalues=[[] for subj in subjects]
         subjsumvalues=[[] for subj in subjects]
         for subjn,subj in enumerate(subjects):
             subjindvalues[subjn]=np.array([float(row[indices['mean']]) for row in thisroi if row[indices['cond']] in relcs and row[indices['subjid']]==subj])
             subjsumvalues[subjn]=np.mean(subjindvalues[subjn])
-        setattr(d,c+'ind',subjindvalues)
-        setattr(d,c+'summary',subjsumvalues)
-        SEM=np.std(subjsumvalues)/np.sqrt(d.numsubj)
+        setattr(da,cond+'ind',subjindvalues)
+        setattr(da,cond+'summary',subjsumvalues)
+        SEM=np.std(subjsumvalues)/np.sqrt(da.numsubj)
         MEAN=np.mean(subjsumvalues)
-        setattr(d,c+'_SEM',SEM)
-        setattr(d,c+'_MEAN',MEAN)
-    return d
+        setattr(da,cond+'_SEM',SEM)
+        setattr(da,cond+'_MEAN',MEAN)
+    return da
     
 print 'paired sample ttests'
 rootdir='/Users/amyskerry/Documents/analysis2/allFSFbetas/'

@@ -8,9 +8,9 @@ Created on Mon Dec  2 10:49:24 2013
 from prepforturk import *
 
 ### set parameters for constructing subjIDs (this should be all you need to chance)
-#rootdir='/Users/amyskerry/Dropbox/fsfcsvs/'
-rootdir='/Users/amyskerry/Documents/projects/turk/NDE_dim/'
-slistfile='slist.py'
+rootdir='/Users/amyskerry/Documents/projects/turk/NDE_dim2/'
+slistfile='task/slist.csv'
+completeddir=rootdir+'/completedturk/
 slistnames=['subjects', 'keycodes']#list of the variables you want in .py file 
 variablenames=['subjID', 'keycode']# list of the variables you want in turk columns
 completed=[] # if you already have subjects in this batch (e.g. are reposting), enter them here 

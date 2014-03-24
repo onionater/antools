@@ -105,8 +105,10 @@ def makebarplot(thisax,data,sems,columnlabels,rowlabels,title, xaxislabel,yaxisl
 #rootdir='/Users/amyskerry/Documents/analysis2/FSFbetas_parametric/'
 rootdir='/Users/amyskerry/Documents/analysis2/allFSFbetas/'
 roilist=['RTPJ','LTPJ','PC','LSTS','RSTS','DMPFC','MMPFC','VMPFC','rFFA','lFFA','rOFA','lOFA', 'rSTS', 'lSTS']
-versions=['binary','parametric', 'mushedbinary', 'mushedbinary_mesoph','mushedparametric', 'mushedbinary_faos','mushedparam_faos']#'mushedparametric', ']
-versiontypes=['b','p','mb','mb', 'mp', 'mb','mp']
+#versions=['binary','parametric', 'mushedbinary', 'mushedbinary_mesoph','mushedparametric', 'mushedbinary_faos','mushedparam_faos']#'mushedparametric', ']
+versions=['mushedbinary', 'mushedparametric', 'mushedbinary_mesoph', 'mushedbinary_faos','mushedparam_faos']#'mushedparametric', ']
+#versiontypes=['b','p','mb','mb', 'mp', 'mb','mp']
+versiontypes=['mb','mp','mb', 'mb','mp']
 subject_subset=[0,8]
 #subject_subset='all'
 substring=str(subject_subset)
@@ -153,10 +155,14 @@ for vn,version in enumerate(versions):
     tomcolumnlabels=['DMPFC_tomloc', 'MMPFC_tomloc', 'VMPFC_tomloc', 'PC_tomloc', 'RTPJ_tomloc', 'LTPJ_tomloc', 'RSTS_tomloc','LSTS_tomloc']
     tomdata=[]
     tomsems=[]
+    if versiontypes[vn]=='p' or versiontypes[vn]=='mp':
+        thisylim=[-.1,.2]
+    else:
+        thisylim=[-.4,.7]
     for cond in tomrows:
         tomdata.append([getattr(roisummaries[key],cond+'MEAN') for key in tomcolumnlabels])
         tomsems.append([getattr(roisummaries[key],cond+'SEM') for key in tomcolumnlabels])
-    makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,tomrows,figtitle,'',yaxis,colorscheme[:len(tomrows)], 'legend', ylim=[-.4,.7])
+    makebarplot(tomax,tomdata,tomsems,tomcolumnlabels,tomrows,figtitle,'',yaxis,colorscheme[:len(tomrows)], 'legend', ylim=thisylim)
     #faceroi
     #want more intuitive ordering
     faceax=plt.subplot(ax[1])

@@ -32,6 +32,10 @@ def makethestuff(base,conds,numhitpercond,cbvers,batch):
                 keys.append(makekeycode(n,c))
                 #do the other things
     return names, keys
+def makethestuffrand(base,conds,numhitpercond,cbvers,batch):
+    names, keys=makethestuff(base,conds,numhitpercond,cbvers,batch)
+    newnames=[name+'_'+str(rand.randint(100,999)) for name in names]
+    return newnames, keys
 
 def maketurkcsv(ignore,names,vals,filename):
     print filename
