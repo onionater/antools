@@ -1,15 +1,14 @@
+# -*- coding: utf-8 -*-
+# <nbformat>3.0</nbformat>
 
-# In[1]:
+# <codecell>
 
-pylab inline
+#pylab inline
 
+# <codecell>
 
-# Out[1]:
-
-#     Populating the interactive namespace from numpy and matplotlib
-# 
-
-# In[2]:
+import sys 
+sys.path.append('/Users/amyskerry/Dropbox/antools/utilities')
 
 import csv
 import aeslazy as asl
@@ -19,305 +18,269 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.io
 from sklearn import svm, cluster, decomposition
+import aesbasicfunctions as abf
 import dealwithNDIMdata_funcs as ndim
-import itertools
+#import dealwithNDEdata as nde
+import analyzeNDE as nde_data
+#import itertools
+
+# <rawcell>
+
+# <codecell>
+#
+#NDIM
+#rootdir='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/NDIM_data/'
+rootdir='/Users/amyskerry/'
+#filename=rootdir+'/sqldata/NDE_dimdl2.csv
+filename='NDE_dimdl.csv'
+savepath=rootdir+'/outputfigs/'
+
+#appraisals
+appraisalfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/appraisals.csv/'
 
 
-# In[3]:
+#NDE
+resultsfile='/Users/amyskerry/documents/projects/turk/NDE_dim/data/NDE_data/sqldata/NDEdl.csv'
+#resultsfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/NDE_data/sqldata/NDEdl_combined.csv' #contains NDEdl.csv and the first row of the two woops (with checks manually corrected since these subjects didn't have Neutral option)
 
-global othercols, excludecols, othercols
-filename='/Users/amyskerry/NDE_dimdl.csv'
-#important columns
+# checkout NDE data...
+
+# <codecell>
+####
+#NDE INFO
+#checkquestions=(201,202)#(86,87)
+expectedanswers=('Neutral', 'Neutral') #what do you expect from these two checks
+#orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
+orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise','Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed']
+maxN=10 #blacklist questions with this many or more
+inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
+
+#NDIM INFO
+
+# <codecell>
+
+suffix='vonly'
+
 othercols=['subjid', 'rownum','submission_date', 'city','country','age','gender','thoughts']
-suffix='allvars'
+#orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise', 'Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed'] #same as NDE but without surprise
+orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
+names,data= abf.extractdata(appraisalfile)
+alldims=[row['Dqname'] for row in data]
+newdimordering=['familiarity','expectedness','certainty','suddenness','pleasantness', 'goal_consistency',  'control', 'fixing','self_cause','agent_cause', 'agent_intention', 'coping','pressure', 'freedom', 'moral','fairness', 'past_present', 'bodily_disease','consequences', 'safety', 'close_others','people','mental_states', 'others_knowledge', 'confidence','relevance', 'self_involvement']
+valenceddims=['pleasantness', 'goal_consistency', 'safety']
+columndict={'subdate':'submission_date', 'check':'main_character','explicit':'emotion','subjid':'subjid'}
+suffixmappings={'allvars':[], 'nv':valenceddims, 'vonly':[i for i in alldims if i not in valenceddims] }
+excludecols=suffixmappings[suffix]
+
+# <codecell>
+#dumb parameters
+bigfig=[8,10]
+medfig=[6,4]
 smallfig=[3,2]
 screesize=[4,3]
 matrixsize=[7,6]
 largefig=[12,8]
+thresh=7
 
 
-# In[4]:
+####
 
-alldims=['expectedness', 'pleasantness', 'goal_consistency', 'fairness', 'agent_cause', 'agent_intention', 'self_cause', 'close_others', 'control', 'fixing', 'moral', 'confidence', 'suddenness', 'familiarity', 'past_present', 'certainty', 'coping', 'mental_states', 'others_knowledge', 'bodily_disease', 'people', 'relevance', 'freedom', 'pressure', 'consequences', 'safety', 'self_involvement']
+#NDE main analyses
+#<codecell>
+[varnames,datamatrix]=nde_data.extractdata(resultsfile)
+checkfailers=nde_data.findcheckfailers(datamatrix, varnames, checkquestions, expectedanswers)
+incfailers=nde_data.testinclusioncrit(datamatrix, varnames, inclusioncols)
+excl_list=[cf*incfailers[cfn] for cfn,cf in enumerate(checkfailers)]
+[labels,answers,correctness,responses,counts]=nde_data.scoreitems(varnames,datamatrix,checkquestions,excl_list)
+stimmeans=list(np.nanmean(correctness,0))
+f,axes=plt.subplots(2)
+axes[0].bar(range(len(stimmeans)), stimmeans);axes[0].set_xlim([0,len(stimmeans)]);axes[0].set_title('accuracies')
+axes[1].bar(range(len(stimmeans)), counts);axes[1].set_xlim([0,len(stimmeans)]);axes[1].set_title('counts')
+[emonames, emoaccuracies, emoerrorcounts, emoerrors]=nde_data.condenseaccuracies(varnames, stimmeans,answers,checkquestions, responses,orderedemos)
+blacklist=[l for ln, l in enumerate(labels) if counts[ln]>maxN]
+nde_data.printdeets(labels, counts, stimmeans, blacklist, maxN)
 
+# <rawcell>
 
-# In[5]:
+# NDIM data...
+
+# <codecell>
 
 #I want to specify an intuitive ordering for visualizing dimensions
-newdimordering=['familiarity','expectedness','certainty','suddenness','pleasantness', 'goal_consistency',  'control', 'fixing','self_cause','agent_cause', 'agent_intention', 'coping','pressure', 'freedom', 'moral','fairness', 'past_present', 'bodily_disease','consequences', 'safety', 'close_others','people','mental_states', 'others_knowledge', 'confidence','relevance', 'self_involvement']
-
-
-# In[6]:
-
-if suffix=='allvars':
-    excludecols=[]
-elif suffix=='nv':
-    excludecols=['pleasantness', 'goal_consistency', 'safety']
-elif suffix=='vonly':
-    valence=['pleasantness', 'goal_consistency', 'safety']
-    excludecols=[i for i in alldims if i not in valence]
-    #excludecols=['expectedness','fairness', 'agent_cause', 'agent_intention', 'self_cause', 'close_others', 'control', 'fixing', 'moral', 'confidence', 'suddenness', 'familiarity', 'past_present', 'certainty', 'coping', 'mental_states', 'others_knowledge', 'bodily_disease', 'people', 'relevance', 'freedom', 'pressure', 'consequences', 'self_involvement']
-
+newdimordering= ndim.reorderdims(newdimordering, excludecols, alldims)
+# <markdowncell>
 
 # find useable subejcts and define vectors of class labels:
 
-# In[7]:
+# <codecell>
 
-[subjects, dims,emolabelmapping]=ndim.extractdata(filename, excludecols, othercols, newdimordering)
+[subjects, dims,labelemomapping]=ndim.extractdata(filename, excludecols, othercols, newdimordering)
 keepers=[subj for subj in subjects if subj.passedcheck()]
-qlabels=set([keep.label for keep in keepers])
-emolabels=set(keep.emo for keep in keepers)
-keepers=ndim.assignCVfolds(keepers,qlabels,emolabels)
+keeperlabels,keeperemos=[keep.label,keep.emo for keep in keepers]
+qlabels=uniquifyordered(keeperlabels)#shouldn't matter that these are ordered, but just in case
+emolabels=uniquifyordered(keeperemos)#shouldn't matter that these are ordered, but just in case
+keepers=ndim.assignCVfolds(keepers,qlabels,emolabels,emolabelmapping)
 
+# <markdowncell>
 
 # actualy emolabels are randomly orded, here use manually sorted labels:
 
-# In[8]:
+# <codecell>
 
-[orderedlabels, orderedemos]=ndim.orderlists(emolabels,qlabels,keepers)
+[orderedlabels, orderedemos]=ndim.orderlists(emolabels,qlabels,keepers,orderemos,emolabelmapping)
 
+# <markdowncell>
 
 # compute item, emo, and dim avgs:
 
-# In[9]:
+# <codecell>
 
 [itemavgs,itemlabels, dimlabels, itememos]=ndim.getitemavgs(keepers,orderedlabels, dims)
 [emoavgs, emolabels, dimlabels]=ndim.getemoavgs(keepers,orderedemos, dims)
 dimavgs=np.array(itemavgs).T
-ndim.plotweightmatrix('emo-avgs x dimensions', dimlabels, emolabels, emoavgs, 'emosxdims_'+suffix+'.png', figuresize=[10,6],cmin=0, cmax=10)
-ndim.plotcorrmatrix('item-wise correlations (of avg item vectors of dim scores)', orderedlabels, itemavgs, 'items_'+suffix+'.png', figuresize=matrixsize)
-ndim.plotcorrmatrix('emo-wise correlations (of avg emo vectors of dim scores)', orderedemos, emoavgs, 'emos_'+suffix+'.png',figuresize=matrixsize)
-ndim.plotcorrmatrix('dim-wise correlations (of avg dimension vectors of item avgs)', dimlabels, dimavgs, 'dims_'+suffix+'.png',figuresize=matrixsize)
+ndim.plotweightmatrix(savepath,'emo-avgs x dimensions', dimlabels, emolabels, emoavgs, 'emosxdims_'+suffix+'.png', figuresize=[10,6],cmin=0, cmax=10)
+ndim.plotcorrmatrix(savepath,'item-wise correlations (of avg item vectors of dim scores)', orderedlabels, itemavgs, 'items_'+suffix+'.png', figuresize=matrixsize)
+ndim.plotcorrmatrix(savepath,'emo-wise correlations (of avg emo vectors of dim scores)', orderedemos, emoavgs, 'emos_'+suffix+'.png',figuresize=matrixsize)
+ndim.plotcorrmatrix(savepath,'dim-wise correlations (of avg dimension vectors of item avgs)', dimlabels, dimavgs, 'dims_'+suffix+'.png',figuresize=matrixsize)
 
+# <codecell>
 
-# Out[9]:
+# <codecell>
 
-# image file:
+#temporarily limiting to subset of emos
+basicsubset=['Afraid', 'Joyful', 'Disgusted', 'Sad', 'Surprise', 'Angry']
+#[itemavgs, itemlabels, itememos, emoavgs, emolabels]=reduce2subset(basicsubset,itemavgs, itemlabels, itememos, emoavgs, emolabels)
 
-# image file:
-
-# image file:
-
-# image file:
+# <markdowncell>
 
 # do clustering analysis with number of emotions imposed:
 
-# In[10]:
+# <codecell>
 
 k_means = cluster.KMeans(n_clusters=len(emolabels))
 k_means.fit(itemavgs)
 kclusters=k_means.labels_
-kclusters, itememos = zip(*sorted(zip(kclusters, itememos))) # nifty trick for zipping together, sorting, and unzipping
+kclusters, itememos = zip(*sorted(zip(kclusters, itememos))) # zipping together, sorting, and unzipping
 for cn, c in enumerate(kclusters):
     print str(c+1) +': '+itememos[cn]
 
-
-# Out[10]:
-
-#     1: Joyful
-#     1: Joyful
-#     1: Proud
-#     1: Proud
-#     1: Proud
-#     1: Proud
-#     2: Annoyed
-#     2: Annoyed
-#     2: Disgusted
-#     2: Disgusted
-#     2: Disgusted
-#     2: Embarrassed
-#     2: Guilty
-#     3: Angry
-#     3: Grateful
-#     3: Grateful
-#     4: Disappointed
-#     4: Impressed
-#     4: Impressed
-#     4: Impressed
-#     4: Impressed
-#     4: Surprise
-#     5: Angry
-#     5: Angry
-#     5: Annoyed
-#     5: Annoyed
-#     5: Annoyed
-#     5: Apprehensive
-#     5: Apprehensive
-#     5: Disappointed
-#     5: Disgusted
-#     5: Embarrassed
-#     5: Lonely
-#     5: Lonely
-#     5: Sad
-#     6: Afraid
-#     6: Afraid
-#     6: Disgusted
-#     7: Apprehensive
-#     7: Apprehensive
-#     7: Guilty
-#     8: Nostalgic
-#     9: Grateful
-#     9: Grateful
-#     9: Hopeful
-#     9: Hopeful
-#     9: Joyful
-#     9: Joyful
-#     10: Embarrassed
-#     10: Embarrassed
-#     10: Embarrassed
-#     10: Grateful
-#     10: Guilty
-#     10: Guilty
-#     11: Disappointed
-#     11: Disappointed
-#     11: Surprise
-#     12: Content
-#     12: Hopeful
-#     12: Nostalgic
-#     12: Nostalgic
-#     12: Nostalgic
-#     12: Nostalgic
-#     13: Joyful
-#     13: Surprise
-#     13: Surprise
-#     13: Surprise
-#     14: Apprehensive
-#     14: Disappointed
-#     14: Sad
-#     14: Sad
-#     14: Sad
-#     15: Afraid
-#     15: Afraid
-#     15: Afraid
-#     15: Angry
-#     15: Angry
-#     15: Sad
-#     16: Guilty
-#     17: Hopeful
-#     17: Hopeful
-#     17: Impressed
-#     17: Lonely
-#     17: Lonely
-#     17: Lonely
-#     17: Proud
-#     18: Content
-#     18: Content
-#     18: Content
-#     18: Content
-# 
+# <rawcell>
 
 # do pca with dimensions as columns
 # display dimensions with highest loadings on top eigenvectors
 
-# In[11]:
+# <codecell>
 
 thresh=.02 #.02% variance explained
 [dim_eigenvectors, dim_eigenvalues, dim_transformed, dim_evlabels, dim_evvalues]=ndim.myPCA(thresh, np.array(itemavgs), 'PCA on dimensions', dimlabels, figuresize=screesize)
 [passedvals, passnames]=ndim.eigentable(emolabelmapping,dim_evlabels,dim_evvalues,num=3)
 # plot in PC space (based on suggested n components)
-ndim.plotcorrmatrix('item-wise correlations (of tranformed item vectors in dimension PC space)', orderedlabels, dim_transformed, 'RD_items_'+suffix+'.png',figuresize=matrixsize)
+ndim.plotcorrmatrix(savepath,'item-wise correlations (of tranformed item vectors in dimension PC space)', orderedlabels, dim_transformed, 'RD_items_'+suffix+'.png',figuresize=matrixsize)
 
-
-# Out[11]:
-
-#     (27,)
-# 
-
-# image file:
-
-#     eigenvector #1--- high-loaders: fairness, goal_consistency, pleasantness; loadings: 0.3, 0.367, 0.393
-#     eigenvector #2--- high-loaders: people, relevance, consequences; loadings: 0.33, 0.426, 0.471
-#     eigenvector #3--- high-loaders: pressure, control, self_cause; loadings: 0.242, 0.417, 0.501
-#     eigenvector #4--- high-loaders: expectedness, safety, others_knowledge; loadings: 0.202, 0.236, 0.253
-#     eigenvector #5--- high-loaders: past_present, self_involvement, agent_intention; loadings: 0.192, 0.284, 0.373
-#     eigenvector #6--- high-loaders: past_present, moral, expectedness; loadings: 0.24, 0.243, 0.249
-#     eigenvector #7--- high-loaders: safety, moral, fairness; loadings: 0.296, 0.305, 0.307
-#     eigenvector #8--- high-loaders: self_cause, bodily_disease, close_others; loadings: 0.204, 0.208, 0.616
-#     eigenvector #9--- high-loaders: agent_intention, others_knowledge, consequences; loadings: 0.229, 0.247, 0.416
-#     eigenvector #10--- high-loaders: mental_states, freedom, pleasantness; loadings: 0.197, 0.256, 0.3
-# 
-
-# image file:
+# <rawcell>
 
 # do pca with items as columns
 # display items with highest loadings on top eigenvectors
 
-# In[12]:
+# <codecell>
 
 #[item_eigenvectors, item_eigenvalues, item_transformed, item_evlabels,item_evvalues]=ndim.myPCA(thresh, np.array(itemavgs).T, 'PCA on items', orderedlabels, figuresize=screesize)
 #[passedvals, passnames]=ndim.eigentable(emolabelmapping,item_evlabels,item_evvalues,num=3)
-#ndim.plotcorrmatrix('item-wise correlations (of tranformed dimension vectors in item PC space)', dimlabels, item_transformed, 'RD_items_'+suffix+'.png',figuresize=matrixsize)
+#ndim.plotcorrmatrix(savepath,'item-wise correlations (of tranformed dimension vectors in item PC space)', dimlabels, item_transformed, 'RD_items_'+suffix+'.png',figuresize=matrixsize)
 
+# <rawcell>
 
 # classify emo based on all dimensions
 # cross validate across split halves
 # display emo similarity space in each fold  
-# 
 
-# In[15]:
+# <codecell>
 
 cvfolds=range(2)
 cvtype='half'
-alldata=[]
-alllabels=[]
+listofemoavgs=[]
+listofemolabels=[]
 for i in cvfolds:
     [theseitemavgs,theseitemlabels, thesedimlabels, theseitememos]=ndim.getitemavgs(keepers,orderedlabels, dims, **{cvtype:i+1})
     [theseemoavgs, theseemolabels, thesedimlabels]=ndim.getemoavgs(keepers,orderedemos, dims, **{cvtype:i+1})
+    #[theseitemavgs, theseitemlabels, theseitememos, theseemoavgs, theseemolabels]=reduce2subset(basicsubset,theseitemavgs, theseitemlabels, theseitememos, theseemoavgs, theseemolabels)
     [theseorderedlabels, theseorderedemos]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos
-    #ndim.plotcorrmatrix('emo-wise correlations (of avg dimension vectors) in each fold', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=smallfig)
-    alldata.append(theseemoavgs)
-    alllabels.append(theseemolabels)
-[classdeets1, accuracies1, chance1]= ndim.classify(cvfolds, alldata, alllabels)
+    ndim.plotcorrmatrix(savepath,'emo-wise correlations (of avg dimension vectors) in each fold', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=smallfig)
+    listofemoavgs.append(theseemoavgs)
+    listofemolabels.append(theseemolabels)
+[classdeets1, accuracies1, chance1]= ndim.classifymultiSVM(cvfolds, listofemoavgs, listofemolabels)
 crosscorrs=ndim.crossmatrixcorr(alldata)
-ndim.plotweightmatrix('emo-wise correlations (across halves)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xhalves'+suffix+'.png', figuresize=[7,5],cmin=-1, cmax=1, cmapspec='RdYlBu')
+ndim.plotweightmatrix(savepath,'emo-wise correlations (across halves)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xhalves'+suffix+'.png', figuresize=[7,5],cmin=-1, cmax=1, cmapspec='RdYlBu_r')
 
+# <codecell>
 
-# Out[15]:
+[classdeets1, accuracies1, chance1]= ndim.classifymultiSVM(cvfolds, listofemoavgs, listofemolabels)
+accuracies1
 
-# image file:
+# <rawcell>
 
 # classify emo based on dimensions...do things seperately for different subsets of the items. 
 # note: do randomized permutations rather than fixed folds based on hitnum...
 # put the following inside a permutation loop and set hitnum=indices[i]
 # display similarity matrices for different folds (comment out the plotting if doing permutation)
-# 
 
-# In[16]:
+# <codecell>
 
 #indices=range(5)
 #shuffle(indices)
 cvfolds=range(5)
 cvtype='hitnum'
-alldata=[]
-alllabels=[]
+listofemoavgs=[]
+listofemolabels=[]
 for i in cvfolds:
     [theseitemavgs,theseitemlabels, thesedimlabels, theseitememos]=ndim.getitemavgs(keepers,orderedlabels, dims, **{cvtype:i+1})
     [theseemoavgs, theseemolabels, thesedimlabels]=ndim.getemoavgs(keepers,orderedemos, dims, **{cvtype:i+1})
-    [theseorderedlabels, theseorderedemos]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos 
-    #ndim.plotcorrmatrix('emo-wise correlations (of avg dimension vectors) in each fold', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=smallfig)
+    #[theseitemavgs, theseitemlabels, theseitememos, theseemoavgs, theseemolabels]=reduce2subset(basicsubset,theseitemavgs, theseitemlabels, theseitememos, theseemoavgs, theseemolabels)
+    [theseorderedlabels]=ndim.orderlists(theseemolabels,theseitemlabels,keepers) # reorder in case you lost some emos 
+    ndim.plotcorrmatrix(savepath,'emo-wise correlations (of avg dimension vectors) in each fold', theseorderedemos, theseemoavgs, 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=smallfig)
     alldata.append(theseemoavgs)
-    alllabels.append(theseemolabels)
-[classdeets2, accuracies2, chance2]= ndim.classify(cvfolds, alldata, alllabels)
+    listofemolabels.append(theseemolabels)
+[classdeets2, accuracies2, chance2]= ndim.classifymultiSVM(cvfolds, listofemoavgs, listofemolabels)
 crosscorrs=ndim.crossmatrixcorr(alldata)
-ndim.plotweightmatrix('emo-wise correlations (across items)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xitems'+suffix+'.png', figuresize=[7,5], cmin=-1, cmax=1, cmapspec='RdYlBu')
+ndim.plotweightmatrix(savepath,'emo-wise correlations (across items)', theseemolabels, theseemolabels, crosscorrs, 'emosimilarities_xitems'+suffix+'.png', figuresize=[7,5], cmin=-1, cmax=1, cmapspec='RdYlBu_r')
 
+# <codecell>
 
-# Out[16]:
+[classdeets2, accuracies2, chance2]= ndim.classifymultiSVM(cvfolds, listofemoavgs, listofemolabels)
+accuracies=[ac for ac in accuracies1]
+accuracies.extend(accuracies2)
+print chance2
+fig =plt.figure()
+ax = fig.add_subplot(1,1,1,)
+plt.bar(range(len(accuracies)), accuracies)
+plt.plot([0,7],[chance2, chance2],color='r')
+ax.set_xticks([i+.4 for i in range(7)])
+ax.set_xticklabels(['split-half1','split-half2','item-cv1','item-cv2','item-cv3','item-cv4','item-cv5'])
+ax.set_ylim([0,1])
 
-# image file:
+# <rawcell>
 
 # figure out how to show that you are capitalizing on a higher-d space
-#     -show that eigenvectors explaining the most variance aren't just valence
-#     -show that you can classify even if excluding valence related dimensions
-#     -show that you take a hit if reducing to massively lower-d space
-#     -show that you can classify above chance when analyzing positive and negative valence separately
+#     -show that eigenvectors explaining the most variance aren't just valence?
+#     -show that you can classify even if excluding valence related dimensions?
+#     -show that you take a hit if reducing to massively lower-d space?
+#     -show that you can classify above chance when analyzing within positive and negative valence separately?
 
-# In[14]:
+# <rawcell>
+
+# compare nlp classification based on appraisals to..
+#     -single level classification based on bag of words
+#     -multilevel algorithm that estimates probabability of appraisals from words, and then emo label from appraisals
+
+# <rawcell>
+
+# individiual differences?
+# asd?
+# explain errors in terms of appraisal extraction? e.g. when emotions are ambiguous or there is less agreement is it because people differ in their appraisal judgments or in the appraisal/emotion mappings?
+
+# <codecell>
 
 
-
-
-# In[ ]:
-
+# <codecell>
 
 

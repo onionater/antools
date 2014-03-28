@@ -318,6 +318,6 @@ def eigentable(emolabelmapping,evlabels,evvalues,**kwargs):
             printstring=string+str(namen+1)+'--- high-loaders: ' +', '.join(name) +'; loadings: '+', '.join([str(round(x,3)) for x in passedvals[namen]])
         print printstring
     return passedvals, passednames
-        
+    
     
         
