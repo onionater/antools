@@ -68,6 +68,7 @@ def extractdata(datafile, excludecols, othercols, *args):
                     dims=newdimorder
             else:
                 subjdata=row
+                sanitycheck(subjdata, nameindex, labelindices, dimindices, emoindices)
                 if subjdata[incindex] != 'NULL' and subjdata[emoind[0]] != 'CHECK':
                     dimvect=[]
                     for x in dimind:
@@ -94,7 +95,7 @@ def extractvardeets(names,checkindex, explindex, othercols, excludecols):
         elif sqln not in othercols and sqln not in excludecols:
             dimindices.append(sqlnum)
             dims.append(sqln)
-    return labelindices, dims, dimindices,emoindices
+    return labelindices, dims, dimindices,emoindices    
             
 def getitemavgs(keepers, labels,dims,**kwargs):
     for condition in kwargs:

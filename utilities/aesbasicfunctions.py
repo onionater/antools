@@ -7,6 +7,8 @@ Created on Wed Mar 26 10:13:27 2014
 import timeit
 import pxssh
 import pysftp
+import csv
+import numpy as np
 
 def is_string_a_number(string):
     try:
@@ -14,6 +16,24 @@ def is_string_a_number(string):
         return True
     except:
         return False
+
+def floatiffloattable(string):
+    try:
+        return float(string)
+    except:
+        return string
+
+def float_or_zero(string):
+    try:
+        return float(string)
+    except:
+        return 0
+
+def float_or_nan(string):
+    try:
+        return float(string)
+    except:
+        return np.nan
         
 def extractdata(datafile):
     with open(datafile, 'rU') as csvfile:
@@ -21,8 +41,16 @@ def extractdata(datafile):
         colnames=reader.next()
         subjdata=[row for row in reader]
     return colnames, subjdata
+    
+def writedata(datafile,names,data):
+    with open(datafile, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(names)
+    #data=zip(*varlist)
+        for row in data:
+            writer.writerow(row)
 
-def uniquifyordered(list):
+def uniquifyordered(mylist):
     '''take a list and return it's unique elements, maintaining their order'''
     mynewset=sorted(set(mylist), key=mylist.index)
     return list(mynewset)

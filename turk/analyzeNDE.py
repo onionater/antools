@@ -142,19 +142,8 @@ def printdeets(qlabels, counts, stimmeans, blacklist, maxN):
     nextstring= 'blacklist the following items (have>'+str(maxN)+' responses): ' + ''.join(["'"+str(b)+"'"+', ' for b in blacklist])
     print nextstring[:-2]
     print 'average accuracy across items: '+str(avgaccuracy)+'%'
-    
-        
-if __name__=='__main__':
-    #hardcoding
-    checkquestions=(201,202)
-    #checkquestions=(86,87)
-    expectedanswers=('Neutral', 'Neutral')
-    resultsfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/NDE_data/sqldata/NDEdl_combined.csv' #contains NDEdl.csv and the first row of the two woops (with checks manually corrected since these subjects didn't have Neutral option)
-    orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
-    #orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise','Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed']
-    maxN=12 #blacklist questions with this many or more
-    inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
 
+def main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos, maxN=12, showblacklist=0):
     [varnames,datamatrix]=extractdata(resultsfile)
     checkfailers=findcheckfailers(datamatrix, varnames, checkquestions, expectedanswers)
     incfailers=testinclusioncrit(datamatrix, varnames, inclusioncols)
@@ -170,4 +159,19 @@ if __name__=='__main__':
     axes[1].set_title('counts')
     [emonames, emoaccuracies, emoerrorcounts, emoerrors]=condenseaccuracies(varnames, stimmeans,answers,checkquestions, responses,orderedemos)
     blacklist=[l for ln, l in enumerate(labels) if counts[ln]>maxN]
-    printdeets(labels, counts, stimmeans, blacklist, maxN)
+    if showblacklist:    
+        printdeets(labels, counts, stimmeans, blacklist, maxN)
+    
+        
+if __name__=='__main__':
+    #hardcoding
+    checkquestions=(201,202)
+    #checkquestions=(86,87)
+    expectedanswers=('Neutral', 'Neutral')
+    resultsfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/NDE_data/sqldata/NDEdl_combined.csv' #contains NDEdl.csv and the first row of the two woops (with checks manually corrected since these subjects didn't have Neutral option)
+    orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
+    #orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise','Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed']
+    maxN=12 #blacklist questions with this many or more
+    inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
+    main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos)
+    
