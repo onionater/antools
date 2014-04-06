@@ -17,15 +17,15 @@ import analyzeNDE as nde_data
 # <codecell>
 
 ##set whether you are analyzing pilot study or real, and specify files accordingly (setfiles has hardcoded features)
-version='ver2_control'#or 'pilot' or 'ver2_control'
-exclusioncriteria={'badsubjects':True, 'weirdlines':False, 'passedcheck':True, 'correctemotion':True}
+version='ver2'#or 'pilot' or 'ver2_control'
+exclusioncriteria={'badsubjects':True, 'weirdlines':False, 'passedcheck':True, 'correctemotion':False}
 rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim.setfiles(version)
 
 # <codecell>
 
 ## set values for nde and ndim (setndevals and setndimvals has hardcoded but potentally relevant features)
 ndecheckquestions, ndeexpectedanswers, ndeinclusioncols, orderedemos=ndim.setndevals(version)
-suffix='allvars' #to restrict analysis use 'vonly' or 'nv'
+suffix='allvars'#'basicemoset'#'valencearousalset'#'allvars' #to restrict analysis use 'vonly' or 'nv'
 orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, defaultdimordering, explicit, othercols,valenceddims, columndict, suffixmappings, excludecols=ndim.setndimvals(version, suffix, appraisalfile, stimfile)
 
 # <codecell>
@@ -42,6 +42,7 @@ if mydimordering:
     newdimordering= ndim.reorderdims(mydimordering, excludecols, othercols, alldims) #will limit to dims in mydimordering
 else: 
     newdimordering=defaultdimordering
+newdimordering=[dim for dim in newdimordering if dim not in suffixmappings[suffix]]
 
 # <codecell>
 ##find useable subejcts and define vectors of labels for all items and all emotions

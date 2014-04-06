@@ -345,7 +345,7 @@ def setndimvals(version, suffix, appraisalfile, stimfile):
     appraisalnames,appraisaldata= abf.extractdata(appraisalfile)
     stims,item2emomapping=extractstims(stimfile)
     alldims=[row[appraisalnames.index('Dqname')] for row in appraisaldata]
-    suffixmappings={'allvars':[], 'nv':valenceddims, 'vonly':[i for i in alldims if i not in valenceddims] }
+    suffixmappings={'allvars':[], 'nv':valenceddims, 'vonly':[i for i in alldims if i not in valenceddims], 'valencearousalset':['happy_dim', 'sad_dim', 'angry_dim', 'afraid_dim', 'surprised_dim', 'disgusted_dim'], 'basicemoset':['valence','arousal']} #dims not included in the suffix version
     excludecols=suffixmappings[suffix]
     return orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, defaultdimordering, explicit, othercols,valenceddims, columndict, suffixmappings,excludecols
 
