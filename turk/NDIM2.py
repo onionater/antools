@@ -17,7 +17,8 @@ import analyzeNDE as nde_data
 # <codecell>
 
 ##set whether you are analyzing pilot study or real, and specify files accordingly (setfiles has hardcoded features)
-version='ver2'#or 'pilot'
+version='ver2_control'#or 'pilot' or 'ver2_control'
+exclusioncriteria={'badsubjects':True, 'weirdlines':False, 'passedcheck':True, 'correctemotion':True}
 rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim.setfiles(version)
 
 # <codecell>
@@ -31,7 +32,7 @@ orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, def
 
 ## run nde analyses and create figs
 nde_data.main(nderesultsfile, ndecheckquestions,ndeexpectedanswers,ndeinclusioncols,orderedemos)
-print nderesultsfile
+#print nderesultsfile
 
 # <codecell>
 
@@ -43,16 +44,23 @@ else:
     newdimordering=defaultdimordering
 
 # <codecell>
-
 ##find useable subejcts and define vectors of labels for all items and all emotions
-[subjects, entries, dimlabels]=ndim.extractndimdata(ndimresultsfile, excludecols, othercols, columndict, item2emomapping, explicit, version, newdimordering)
+[subjects, entries, dimlabels]=ndim.extractndimdata(ndimresultsfile, excludecols, othercols, columndict, item2emomapping, explicit, version, exclusioncriteria, newdimordering)
 
 # <codecell>
 #assess data quality and limit accordingly
 badsubjectnames, allcheckscoreavgs =ndim.checkforbadsubjects(subjects, ndim.subjavgcheckthresh)
-keepers=[entry for entry in entries if entry.passedcheck] #previous exclusions were unusable data collection. this is limiting to those entries that pass the manipulation check (main character)
-keepers=[entry for entry in keepers if entry.maxemopass] #limiting to those who rated the predicted emo class as one of their top explictly rated emos
-keepers=[entry for entry in keepers if entry.subjid not in badsubjectnames] #limiting to those who pass the subject-level checks specified in checkforbadsubjects (including timing and overall accuracy on manipulation checks: if subjects are guessing randomly on manipulation checks, we want to exlude all their responses, not just the items where they fail)
+print str(len(entries)) +" functional entries"
+keepers=entries
+if exclusioncriteria['passedcheck']:
+    keepers=[entry for entry in keepers if entry.passedcheck] #previous exclusions were unusable data collection. this is limiting to those entries that pass the manipulation check (main character)
+    print str(len(keepers)) +" passed main character check"
+if exclusioncriteria['correctemotion']:
+    keepers=[entry for entry in keepers if entry.maxemopass] #limiting to those who rated the predicted emo class as one of their top explictly rated emos
+    print str(len(keepers)) +" rated emotions correctly"
+if exclusioncriteria['badsubjects']:
+    keepers=[entry for entry in keepers if entry.subjid not in badsubjectnames] #limiting to those who pass the subject-level checks specified in checkforbadsubjects (including timing and overall accuracy on manipulation checks: if subjects are guessing randomly on manipulation checks, we want to exlude all their responses, not just the items where they fail)
+    print str(len(keepers)) +" retained after removing bad subjects"
 keeperlabels=[keep.label for keep in keepers]
 keeperemos=[keep.emo for keep in keepers]
 
@@ -68,15 +76,17 @@ orderedlabels, orderedemos=ndim.orderlists(list(emolabels),list(qlabels),keepers
 keepers, numstimsperemo=ndim.assignCVfolds(keepers,item2emomapping) #add cv relevant indices to keeper entries
 
 # <codecell>
-
+#get accuracy data from ndim subjects
+labelxemo, emoxemo, selectiveitems=ndim.explicitemosndim(version, keepers, orderedemos, orderedlabels)
+# <codecell>
 #compute item, emo, and dim avgs:
 itemavgs,itemlabels,itememos,emoavgs,dimavgs=ndaw.basicdescriptives(keepers,orderedlabels, orderedemos, dimlabels, suffix, savepath)
 
 # <codecell>
 
 #can limit to a subset of emos
-#basicsubset=['Afraid', 'Joyful', 'Disgusted', 'Sad', 'Surprise', 'Angry']
-#[itemavgs, itemlabels, itememos, emoavgs, emolabels]=reduce2subset(basicsubset,itemavgs, itemlabels, itememos, emoavgs, emolabels)
+#basicsubsetemos=['Afraid', 'Joyful', 'Disgusted', 'Sad', 'Surprise', 'Angry']
+#[itemavgs, itemlabels, itememos, emoavgs, emolabels]=ndim.reduce2subset(basicsubsetemo,itemavgs, itemlabels, itememos, emoavgs, emolabels)
 
 # <codecell>
 

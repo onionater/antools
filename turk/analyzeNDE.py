@@ -143,6 +143,13 @@ def printdeets(qlabels, counts, stimmeans, blacklist, maxN):
     print nextstring[:-2]
     print 'average accuracy across items: '+str(avgaccuracy)+'%'
 
+def displaybestitems(labels, answers, stimmeans):
+    accthresh=.8
+    print "****best NDE items*****"
+    bestitems=[l for ln,l in enumerate(labels) if stimmeans[ln]>accthresh]
+    print bestitems
+    return bestitems
+
 def main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos, maxN=12, showblacklist=0):
     [varnames,datamatrix]=extractdata(resultsfile)
     checkfailers=findcheckfailers(datamatrix, varnames, checkquestions, expectedanswers)
@@ -150,6 +157,7 @@ def main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos,
     excl_list=[cf*incfailers[cfn] for cfn,cf in enumerate(checkfailers)]
     [labels,answers,correctness,responses,counts]=scoreitems(varnames,datamatrix,checkquestions,excl_list)
     stimmeans=list(np.nanmean(correctness,0))
+    #bestitems=displaybestitems(labels, answers, stimmeans)
     f,axes=plt.subplots(2)
     axes[0].bar(range(len(stimmeans)), stimmeans)
     axes[0].set_xlim([0,len(stimmeans)])

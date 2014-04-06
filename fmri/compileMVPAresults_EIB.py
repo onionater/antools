@@ -105,7 +105,7 @@ for comparen,compare in enumerate(comparisonsets):
             #[t2,p2]=smws.ztest(keepers, value=.5, alternative='larger') smws is off in the pvalues... unclear why
             meanA=np.mean(compA)
             meanB=np.mean(compB)
-            df=len(compA)-1
+            df=len(compA)-2
             string=roi+': M=%.3f, M=%.3f, t(%.0f)=%.3f,p=%.3f.' %(meanA,meanB,df,t,p) #dividing by two for one-tailed test
             print string
 analysissets=['Medial Prefrontal Cortex', 'Posterior Superior Temporal Cortex', 'Face regions', 'Theory of mind regions']

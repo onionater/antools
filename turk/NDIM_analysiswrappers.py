@@ -65,7 +65,7 @@ def classifyitemsummaries(cvfolds, cvtype, keepers, orderedlabels, orderedemos, 
         [fold['emoavgs'], fold['emolabels']]=ndim.getemoavgs(keepers,orderedemos, **{cvtype:i})
         #[fold['itemavgs'], fold['itemlabels'], fold['itememos'], fold['emoavgs'], fold['emolabels']]=reduce2subset(basicsubset,fold['itemavgs'], fold['itemlabels'], fold['itememos'], fold['emoavgs'], fold['emolabels'])
         [fold['ordereditems'], fold['orderedemos']]=ndim.orderlists(fold['emolabels'],fold['itemlabels'],keepers,orderedemos,item2emomapping) # reorder in case you lost some emos
-        ndim.plotcorrmatrix(savepath,'emo-wise correlations (of avg dimension vectors) in each fold', fold['orderedemos'], fold['emoavgs'], 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=corrfiguresize)
+        #ndim.plotcorrmatrix(savepath,'emo-wise correlations (of avg dimension vectors) in each fold', fold['orderedemos'], fold['emoavgs'], 'emos_'+suffix+cvtype+str(i)+'.png', figuresize=corrfiguresize)
         result['listofemoavgs'].append(fold['emoavgs'])
         result['listofemolabels'].append(fold['emolabels'])
         result['listoffolds'].append(fold['name'])

@@ -33,7 +33,7 @@ def createnewbatch(rootdir,newbatchfileroot, names, data):
     
 
 rootdir='/users/amyskerry/documents/projects/turk/NDE_dim2/turkcsvs/'
-remainingfile=rootdir+'Ndim2_remaining.csv'
+remainingfile=rootdir+'Ndim2_remaining_control.csv'
 newbatchfileroot='Ndim2_batch'
 numberofhits=10
 

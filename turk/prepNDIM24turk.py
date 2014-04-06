@@ -43,7 +43,7 @@ with open(stimfile, 'rU') as csvfile:
         elif rown > 99:
             possconds.append('q'+str(rown))
 numhitpercond=2 # number of hits you want for each individal counterbalancing/condition combo
-batchlabels4turk=['BLUE']#, 'GREEN', 'YELLOW', 'ORANGE', 'RED', 'PURPLE', 'TEAL', 'PINK']
+batchlabels4turk=['GREEN']#, 'GREEN', 'YELLOW', 'ORANGE', 'RED', 'PURPLE', 'TEAL', 'PINK']
 #####
 
 
@@ -52,7 +52,7 @@ varlist=[]
 for var in variablenames:
         varlist.append([])
 conds=possconds
-for batch in batchlabels4turk:
+for batchnum, batch in enumerate(batchlabels4turk):
     print batch
     batchfile=rootdir+'turkcsvs/'+base+'_'+batch+'.csv'
     variables=prep.makethestuffrand(base,conds,numhitpercond,version,batchnum)

@@ -25,10 +25,11 @@ checkthresh=3 #threshold for considering each entry a check passer or not
 subjavgcheckthresh=7 #threshold for avgcheckscore for a subject to be included
 
 class Entry():
-    def __init__(self, thresh=checkthresh, rownum=[],subjid=[], label=[], emo=[], dimvect=[], check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
+    def __init__(self, thresh=checkthresh, rownum=[],subjid=[],version=[], label=[], emo=[], dimvect=[], check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
         self.thresh=thresh
         self.rownum=rownum        
         self.subjid=subjid
+        self.version=version
         self.label=label #stimlabel
         self.emo=emo
         self.dimvect=dimvect
@@ -42,6 +43,8 @@ class Entry():
         self.explicitpass=correctemorating>thresh
         self.passedcheck=self.check>self.thresh
         self.explicit=explicit
+        self.explicitfit=1
+        self.dimensionfit=1 #how well does the dimvect align with the group
         
 class Stimulus():
     def __init__(self,qlabel=[],emotion=[],	num=[],valence=[],source=[],person=[],contentsummary=[],lengthinwords=[],durationinsecs=[],stimcontent=[]):
@@ -57,36 +60,41 @@ class Stimulus():
         self.stimcontent=stimcontent
         
 class Subject():
-    def __init__(self,subjid=[], finalrownum=[],rownums=[], subdate=[], checkscores=[], gender=[], age=[], city=[], country=[], thoughts=[], noface=np.nan, intune=np.nan, nothought=np.nan, needverbal=np.nan, facevoice=np.nan, surprised=np.nan):
+    def __init__(self,subjid=[], finalrownum=[],rownums=[], subdate=[], version=[], checkscores=[], gender=[], age=[], city=[], country=[], thoughts=[], noface=np.nan, nothought=np.nan, needverbal=np.nan, facevoice=np.nan, surprised=np.nan):
         self.subjid=subjid
         self.finalrownum=finalrownum        
         self.rownums=rownums
         self.subdate=subdate
+        self.version=version
         self.checkscores=checkscores        
         self.gender=gender
         self.age=age
         self.city=city
         self.country=country
         self.thoughts=thoughts
-        self.noface=abf.float_or_nan(noface)*1 #multiple positive items by 1, negative items by -1
-        self.intune=abf.float_or_nan(intune)*1
-        self.nothought=abf.float_or_nan(nothought)*-1
-        self.needverbal=abf.float_or_nan(needverbal)*-1
-        self.facevoice=abf.float_or_nan(facevoice)*-1
-        self.surprised=abf.float_or_nan(surprised)*-1
+        self.noface=abf.float_or_nan(noface) 
+        self.nothought=10-abf.float_or_nan(nothought) #10 - x for reverse coded items
+        self.needverbal=10-abf.float_or_nan(needverbal)
+        self.facevoice=10-abf.float_or_nan(facevoice)
+        self.surprised=10-abf.float_or_nan(surprised)
         self.specificEIQ=np.mean([float(self.noface), float(self.needverbal), float(self.facevoice), float(self.surprised)])
-        self.generalEIQ=np.mean([float(self.intune), float(self.nothought)])
-        self.allEQI=np.mean([float(self.specificEIQ), float(self.generalEIQ)])
+        self.generalEIQ=self.nothought
+        self.allEIQ=np.mean([float(self.specificEIQ), float(self.generalEIQ)])
         self.included=[]
     @property
     def avgcheckscore(self):
         return np.mean(self.checkscores)
+    def assessinddff(self,entries):
+        relentries=[entry for entry in entries if entry.subjid==self.subjid]
+        subjexplicitscore=1
+        subjdimensionscore=1 
+        return explicitscore, dimensionscore
 
 def makesubject(entries, existingsubjects, colnames, subjdata, nameindex, rowindex, incindex, checkindex, version, subjectthresh=8):
     subjname=subjdata[nameindex]
     existingsubswithname=searchobjects(existingsubjects, {'subjid':subjname})
-    if version=='ver2':
-        columns=['submission_date', 'gender', 'age', 'city', 'country', 'thoughts', 'response_noface', 'response_intune', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
+    if version in ('ver2', 'ver2_control'):
+        columns=['submission_date', 'gender', 'age', 'city', 'country', 'thoughts', 'response_noface', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
     elif version=='pilot':
         columns=['submission_date', 'gender', 'age', 'city', 'country', 'thoughts']
     md={}
@@ -94,10 +102,10 @@ def makesubject(entries, existingsubjects, colnames, subjdata, nameindex, rowind
         md[column]=colnames.index(column)
     if len(existingsubswithname)>0:
         subjname=subjname+'duplicate'
-    if version=='ver2':
-        subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']], noface=subjdata[md['response_noface']], intune=subjdata[md['response_intune']], nothought=subjdata[md['response_nothought']], needverbal=subjdata[md['response_needverbal']], facevoice=subjdata[md['response_facevoice']], surprised=subjdata[md['response_surprised']])
+    if version in ('ver2', 'ver2_control'):
+        subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], version=version, gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']], noface=subjdata[md['response_noface']], nothought=subjdata[md['response_nothought']], needverbal=subjdata[md['response_needverbal']], facevoice=subjdata[md['response_facevoice']], surprised=subjdata[md['response_surprised']])
     elif version=='pilot':
-        subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']])
+        subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], version=version, gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']])
     relevantentries=searchobjects(entries, {'subjid':subjname})
     subject.checkscores=[row.check for row in relevantentries]
     subject.rownums=[row.rownum for row in relevantentries]
@@ -105,21 +113,87 @@ def makesubject(entries, existingsubjects, colnames, subjdata, nameindex, rowind
     return subject
     
 def analyzesubjects(subjects, version):
-    if version=='ver2':
+    if version in ('ver2', 'ver2_control'):
+        noface=[subj.noface for subj in subjects]
+        facevoice=[subj.facevoice for subj in subjects]
+        nothought=[subj.nothought for subj in subjects]
+        needverbal=[subj.needverbal for subj in subjects]
+        surprised=[subj.surprised for subj in subjects]
         specific=[subj.specificEIQ for subj in subjects]
         general=[subj.generalEIQ for subj in subjects]
-        specifichist=sorted(Counter(specific).items())
-        slabels=[str(el[0]) for el in specifichist]
-        scounts=[el[1] for el in specifichist]
-        fig, axes=plt.subplots(2)
+        scounts, slabels=np.histogram(specific, bins=20)
+        gcounts, glabels=np.histogram(general, bins=20)
+        fig, axes=plt.subplots(3)
         axes[0].bar(range(len(scounts)), scounts)
         axes[0].set_xticklabels(slabels)
-        generalhist=sorted(Counter(general).items())
-        glabels=[str(el[0]) for el in generalhist]
-        gcounts=[el[1] for el in generalhist]
         axes[1].bar(range(len(gcounts)), gcounts)
-        axes[0].set_xticklabels(glabels)
-    
+        axes[1].set_xticklabels(glabels)
+        axes[2].scatter(general,specific)
+        axes[2].set_xlabel('general')
+        axes[2].set_ylabel('specific')
+        fig, axes=plt.subplots(4,3)
+        axes[0,0].scatter(noface,facevoice); axes[0,0].set_xlabel('noface'); axes[0,0].set_ylabel('facevoice')
+        axes[1,0].scatter(noface,nothought); axes[1,0].set_xlabel('noface'); axes[1,0].set_ylabel('nothought')
+        axes[2,0].scatter(noface,needverbal); axes[2,0].set_xlabel('noface'); axes[2,0].set_ylabel('needverbal')
+        axes[3,0].scatter(noface,surprised); axes[3,0].set_xlabel('noface'); axes[3,0].set_ylabel('surprised')
+        axes[0,1].scatter(facevoice,nothought); axes[0,1].set_xlabel('facevoice'); axes[0,1].set_ylabel('nothought')
+        axes[1,1].scatter(facevoice,needverbal); axes[1,1].set_xlabel('facevoice'); axes[1,1].set_ylabel('needverbal')
+        axes[2,1].scatter(facevoice,surprised); axes[2,1].set_xlabel('facevoice'); axes[2,1].set_ylabel('surprised')
+        axes[3,1].scatter(nothought,needverbal); axes[3,1].set_xlabel('nothought'); axes[3,1].set_ylabel('needverbal')
+        axes[0,2].scatter(nothought,surprised); axes[0,2].set_xlabel('nothought'); axes[0,2].set_ylabel('surprised')
+        axes[1,2].scatter(needverbal,surprised); axes[1,2].set_xlabel('needverbal'); axes[1,2].set_ylabel('surprised')
+
+def checkselectivity(stimavgs, orderedemos, entry, label):
+    selectivitythresh=-2
+    accthresh=0
+    correctemo=stimavgs[orderedemos.index(entry.emo)]
+    stimavgs[orderedemos.index(entry.emo)]=np.nan
+    nextmax=max(stimavgs)
+    selectivity=correctemo-nextmax
+    if selectivity>selectivitythresh and correctemo>accthresh:
+        return label
+
+def explicitemosndim(version, keepers, orderedemos, orderedlabels):
+    if version in ('ver2', 'ver2_control'):
+        labelXemo=[]
+        selectiveitems={emo:[] for emo in orderedemos}
+        for label in orderedlabels:
+            relentries=[keep for keep in keepers if keep.label==label]
+            stimvector=[]
+            for entry in relentries:
+                stimvector.append([abf.float_or_nan(entry.explicit[rowemo+'_extent']) for rowemo in orderedemos])
+            if len(stimvector)==1:
+                stimavgs=stimvector[0]
+            elif len(stimvector)>1:
+                stimavgs=np.mean(stimvector, 0)
+            selectivity=checkselectivity(stimavgs, orderedemos, entry, label)
+            if selectivity:
+                selectiveitems[entry.emo].append(selectivity)
+            labelXemo.append(np.array(stimavgs))
+        fig, ax=plt.subplots(1)
+        ax.pcolor(np.array(labelXemo), cmap='hot')
+        ax.set_xticklabels(orderedemos)
+        ax.set_yticklabels(orderedlabels)
+        emoXemo=[]
+        for emo in orderedemos:
+            relentries=[keep for keep in keepers if keep.emo==emo]
+            emovector=[]
+            for entry in relentries:
+                emovector.append([abf.float_or_nan(entry.explicit[rowemo+'_extent']) for rowemo in orderedemos])
+            if len(emovector)==1:
+                emoXemo.append(np.array(emovector[0]))
+            elif len(emovector)>1:
+                emoXemo.append(np.mean(emovector, 0))
+        fig, ax=plt.subplots(1)
+        ax.pcolor(np.array(emoXemo), cmap='hot')
+        ax.set_xticklabels(orderedemos)
+        ax.set_yticklabels(orderedemos)
+    else:
+        labelXemo='not applicable'
+        emoXemo='not applicable'
+        selectiveitems='not applicable'
+    return labelXemo, emoXemo, selectiveitems
+
 def searchobjects(objects, criteria):
     '''takes dict of critera and searches for entries that match''' 
     matches=objects
@@ -131,20 +205,22 @@ def searchobjects(objects, criteria):
     return matches
     
 
-def extractndimdata(datafile, excludecols, othercols, columndict, item2emomapping, explicit, version, *args):
+def extractndimdata(datafile, excludecols, othercols, columndict, item2emomapping, explicit, version, exclusioncriteria, *args):
     '''get the data from an excel file, returns good subject, list of relevant dimensions, and list of stim to emotion category mappings '''
     item2emomappingobsvered={}
     with open(datafile, 'rU') as csvfile:
         reader = csv.reader(csvfile)
         sqlnames=reader.next()
         data=[row for row in reader]  
+        print str(len(data)) +" rows in main csv file"
     rowindex, incindex, checkindex, nameindex, submissionindex, emoindex=[sqlnames.index(thevalue) for thevalue in columndict.values()]  #column dict is ordered
-    [labelind, dims, dimind, emoind]=extractndimvardeets(sqlnames, checkindex, othercols, excludecols)
+    [labelind, dims, dimind, emoind]=extractndimvardeets(version,sqlnames, checkindex, othercols, excludecols)
     if args[0]:
         newdimorder=args[0]
         dimind=[dimind[dims.index(dim)] for dim in newdimorder if dim in dims] #this will only use dimensions listed in newdimorder
         dims=newdimorder
     keepers=[entry for entry in data if entry[incindex] != 'NULL']
+    print str(len(keepers)) +" entries with some non-null responses"
     entries=[]
     print "******checking sanity of responses, making entries for the sane ones******"
     subjects=[]
@@ -158,14 +234,17 @@ def extractndimdata(datafile, excludecols, othercols, columndict, item2emomappin
                 if len(emotion)>1:
                     print "warning something strange"
                 maxemo, explicitjudgments=findexplicits(explicit, subjdata, version, sqlnames)
-                entry=Entry(rownum=subjdata[rowindex], subjid=subjdata[nameindex], label=subjdata[labelind[0]], emo=emotion[0], dimvect=dimvect, check=subjdata[checkindex], explicit=explicitjudgments, maxemo=maxemo) #eac subj saw single emo/quest so we can just rovide the value from the first of these columns            
+                entry=Entry(rownum=subjdata[rowindex], subjid=subjdata[nameindex], version=version, label=subjdata[labelind[0]], emo=emotion[0], dimvect=dimvect, check=subjdata[checkindex], explicit=explicitjudgments, maxemo=maxemo) #eac subj saw single emo/quest so we can just rovide the value from the first of these columns            
                 entries.append(entry)            
                 item2emomappingobsvered[subjdata[labelind[0]]]=subjdata[emoind[0]] #okay to do this in each row since it will just rewrite existing ones andthe mapping is the same for all subjects
             except:
                 print subjdata[nameindex] + ' had a NaN dimension value for item '+ subjdata[labelind[0]]+ '. Excluding subject.'
+    print str(len(entries)) +" entries passed sanity check (completed task, non-null responses)"
     weirddims, weirdsources=checkmappings(keepers,rowindex, item2emomapping, item2emomappingobsvered)
     weirdsources=[s for sublist in weirdsources for s in sublist]
-    entries=[e for e in entries if e.rownum not in weirdsources]
+    if exclusioncriteria['weirdlines']:
+        entries=[e for e in entries if e.rownum not in weirdsources]
+        print str(len(entries)) +" entries that didn't have wacko mislabeling of items"
     for subjdata in keepers:
         if not subjdata[submissionindex]== 'NULL': #if this is the final entry for the subject and where they submitted their demo form...                
             subjects.append(makesubject(entries, subjects, sqlnames, subjdata, nameindex, rowindex, incindex, checkindex, version))
@@ -186,7 +265,7 @@ def extractstims(stimfile):
 def findexplicits(explicit, subjdata, version, sqlnames):
     explicitindices=[sqlnames.index(e) for e in explicit]
     explicitjudgments={explicit[en]:subjdata[e] for en,e in enumerate(explicitindices)}
-    if version=='ver2':
+    if version in ('ver2', 'ver2_control'):
         maxemo=[key[0:-7] for key in explicitjudgments.keys() if explicitjudgments[key]==str(np.max([int(el) for el in explicitjudgments.values()]))]                
     elif version=='pilot':
         maxemo=subjdata[explicitindices[0]]
@@ -214,7 +293,13 @@ def setfiles(version):
         rootdir='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/DIM_data/'
         ndimresultsfile=rootdir+'sqldata/NDE_dimdl2.csv'
         stimfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/NDE_stims.csv'
-        appraisalfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/appraisals.csv'
+        appraisalfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/appraisals_main.csv'
+    elif version=='ver2_control':
+        nderesultsfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/NDE_data/sqldata/NDEdl_combined.csv'
+        rootdir='/Users/amyskerry/documents/projects/turk/NDE_dim2/data/DIM_data/'
+        ndimresultsfile=rootdir+'sqldata/NDE_dimdl2_control.csv'
+        stimfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/NDE_stims.csv'
+        appraisalfile='/Users/amyskerry/documents/projects/turk/NDE_dim2/task/appdata/appraisals_control.csv'
     savepath=rootdir+'outputfigs/'
     return rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath
 
@@ -224,11 +309,11 @@ def setndevals(version):
         checkquestions=(86,87)
         expectedanswers=('Neutral', 'Neutral')
         inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
-    elif version=='ver2':
+    elif version in ('ver2', 'ver2_control'):
         orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
         checkquestions=(201,202)#(86,87)
         expectedanswers=('Neutral', 'Neutral') #what do you expect from these two checks
-        inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
+        inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper    
     return checkquestions, expectedanswers, inclusioncols, orderedemos
 
 def setndimvals(version, suffix, appraisalfile, stimfile):
@@ -238,15 +323,25 @@ def setndimvals(version, suffix, appraisalfile, stimfile):
         othercols=['subjid', 'rownum','submission_date', 'city','country','age','gender','thoughts', 'emotion', 'emotion_qlabel', 'emotion_qemo', 'main_character']    
         valenceddims=['pleasantness', 'goal_consistency', 'safety']
         explicit=['emotion']
+        columndict=OrderedDict([('rownum', 'rownum'),('inclusion','pleasantness'), ('check','main_character'),('subjid','subjid'), ('sumbission_date', 'submission_date'), ('emotion', 'pleasantness_qemo')])
     elif version =='ver2':
         orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
         defaultdimordering=['expectedness', 'pleasantness', 'goal_consistency', 'fairness', 'agent_cause', 'agent_intention', 'self_cause', 'close_others', 'control', 'altering', 'moral', 'selfesteem', 'suddenness', 'familiarity', 'future', 'past', 'occurred', 'certainty', 'repetition', 'coping', 'mental_states', 'others_knowledge', 'bodily_disease', 'people', 'relevance', 'freedom', 'pressure', 'consequences', 'danger', 'self_involvement', 'remember', 'self_consistency', 'relationship_influence', 'agent_situation', 'attention', 'psychological_change', 'safey', 'knowledge_change']
-        othercols=['subjid', 'rownum','submission_date', 'city','country','age','gender','thoughts', 'emotion', 'emotion_qlabel', 'emotion_qemo', 'main_character', 'response_noface', 'response_intune', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
+        othercols=['subjid', 'rownum','submission_date', 'city','country','age','gender','thoughts', 'Neutral_extent', 'emotion', 'emotion_qlabel', 'emotion_qemo', 'main_character', 'response_noface', 'response_intune', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
         explicit=[emo+'_extent' for emo in orderedemos]
         for emo in explicit:
             othercols.append(emo)
         valenceddims=['pleasantness', 'goal_consistency', 'safety']
-    columndict=OrderedDict([('rownum', 'rownum'),('inclusion','pleasantness'), ('check','main_character'),('subjid','subjid'), ('sumbission_date', 'submission_date'), ('emotion', 'pleasantness_qemo')])
+        columndict=OrderedDict([('rownum', 'rownum'),('inclusion','pleasantness'), ('check','main_character'),('subjid','subjid'), ('sumbission_date', 'submission_date'), ('emotion', 'pleasantness_qemo')])
+    elif version =='ver2_control':
+        orderedemos=['Grateful', 'Joyful','Hopeful','Excited','Proud','Impressed','Content','Nostalgic', 'Surprised','Lonely', 'Furious','Terrified','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Devastated', 'Disappointed', 'Jealous']
+        defaultdimordering=['valence', 'arousal', 'afraid_dim', 'angry_dim', 'sad_dim', 'disgusted_dim','surprised_dim','happy_dim']
+        othercols=['subjid', 'rownum','submission_date', 'city','country','age','gender','thoughts', 'Neutral_extent', 'emotion', 'emotion_qlabel', 'emotion_qemo', 'main_character', 'response_noface', 'response_intune', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
+        explicit=[emo+'_extent' for emo in orderedemos]
+        for emo in explicit:
+            othercols.append(emo)
+        valenceddims=['valence']
+        columndict=OrderedDict([('rownum', 'rownum'),('inclusion','valence'), ('check','main_character'),('subjid','subjid'), ('sumbission_date', 'submission_date'), ('emotion', 'valence_qemo')])
     appraisalnames,appraisaldata= abf.extractdata(appraisalfile)
     stims,item2emomapping=extractstims(stimfile)
     alldims=[row[appraisalnames.index('Dqname')] for row in appraisaldata]
@@ -255,14 +350,19 @@ def setndimvals(version, suffix, appraisalfile, stimfile):
     return orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, defaultdimordering, explicit, othercols,valenceddims, columndict, suffixmappings,excludecols
 
     
-def extractndimvardeets(names,checkindex,othercols, excludecols):
+def extractndimvardeets(version,names,checkindex,othercols, excludecols):
     ''' returns indices for questions columns, emotion columns, dimension columns, as well as list of dimension c'''
-    excl=[othercols, excludecols, [checkindex]]
+    excl=[othercols, excludecols]
     excludables=[el for sublist in excl for el in sublist]
-    labelindices=[sqlnum for sqlnum,sqln in enumerate(names) if 'qlabel' in sqln and sqln not in othercols and sqln not in excludecols]
-    emoindices=[sqlnum for sqlnum,sqln in enumerate(names) if 'qemo' in sqln and sqln not in othercols and sqln not in excludecols]
-    dimindices=[sqlnum for sqlnum,sqln in enumerate(names) if not any(substr in sqln for substr in ('qemo', 'qlabel')) and not any([sqln in sublist for sublist in (othercols, excludecols, [checkindex])])]
-    dims=[sqln for sqlnum,sqln in enumerate(names) if not any(substr in sqln for substr in ('qemo', 'qlabel')) and not any([sqln in sublist for sublist in (othercols, excludecols, [checkindex])])]
+    labelindices=[sqlnum for sqlnum,sqln in enumerate(names) if 'qlabel' in sqln and sqln not in excludables]
+    emoindices=[sqlnum for sqlnum,sqln in enumerate(names) if 'qemo' in sqln and sqln not in excludables]
+    dimindices=[sqlnum for sqlnum,sqln in enumerate(names) if not any(substr in sqln for substr in ('qemo', 'qlabel')) and sqln not in excludables]
+    dims=[sqln for sqlnum,sqln in enumerate(names) if not any(substr in sqln for substr in ('qemo', 'qlabel')) and sqln not in excludables]
+    if version=="ver2_control": #because, confusingly surprised and disgusted are both emos and appraisals in ver2_control
+        dims.append('surprised_dim')
+        dims.append('disgusted_dim')
+        dimindices.append(names.index('Surprised_extent'))
+        dimindices.append(names.index('Disgusted_extent'))
     return labelindices, dims, dimindices,emoindices
     
 def sanitycheck(subject, nameindex, labelindices, dimindices, emoindices):
@@ -397,6 +497,7 @@ def getemoavgs(keepers, emolabels, **kwargs):
             emovects.append(np.array([5 for el in range(numdims)])) #temp hack, if no vecter set all to 5
             newemolabels.append(la)
     return emovects, newemolabels  
+    
 def plotcorrmatrix(savepath, title, axis, datamatrix, suffix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu_r'):
     '''plots correlation matrix for each row in the datamatrix (symmetrical, diagonal of 1)'''    
     fig=plt.figure(figsize=figuresize)   
