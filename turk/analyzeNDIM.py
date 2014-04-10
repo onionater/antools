@@ -21,12 +21,13 @@ import seaborn as sns
 #default style parameters
 bigfig=[8,10]
 medfig=[6,4]
-checkthresh=3 #threshold for considering each entry a check passer or not
-subjavgcheckthresh=7 #threshold for avgcheckscore for a subject to be included
+checkthresh=5 #threshold for considering each entry a check passer or not (don't include any entry < this value)
+subjavgcheckthresh=8 #threshold for avgcheckscore for a subject to be included (if a subject on average rated the check below this value, exclude all their responses)
 
 class Entry():
-    def __init__(self, thresh=checkthresh, rownum=[],subjid=[],version=[], label=[], emo=[], dimvect=[], check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
+    def __init__(self, thresh=checkthresh, final=[],rownum=[],subjid=[],version=[], label=[], emo=[], dimvect=[], check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
         self.thresh=thresh
+        self.final=final
         self.rownum=rownum        
         self.subjid=subjid
         self.version=version
@@ -152,6 +153,28 @@ def checkselectivity(stimavgs, orderedemos, entry, label):
     selectivity=correctemo-nextmax
     if selectivity>selectivitythresh and correctemo>accthresh:
         return label
+        
+def checkitemcounts(orderedlabels, keepers, hitthresh):
+    numitems=len(orderedlabels)
+    hist=[[] for a in range(0,numitems)]
+    for labeln, label in enumerate(orderedlabels):
+        hist[labeln]=[k.subjid for k in keepers if k.label==label]
+    histocounts=[len(h) for h in hist]
+    f,axes=plt.subplots(1, figsize=[26,5])
+    axes.bar(range(0,numitems), histocounts)
+    axes.set_xticks(np.arange(0.6,numitems+.6,2))
+    axes.set_xticklabels(orderedlabels[0:numitems:2], rotation=90, fontsize=10)
+    axes.set_xlabel('all keepers')
+    axes.set_ylim(0,14)
+    blacklist=[(el[1:],histocounts[eln]) for eln,el in enumerate(orderedlabels) if histocounts[eln]>hitthresh]
+    alllist=[(el[1:],histocounts[eln]) for eln,el in enumerate(orderedlabels)]
+    needmores=[(el[1:],histocounts[eln]) for eln,el in enumerate(orderedlabels) if histocounts[eln]<6]
+    listdict=dict(blacklist)  
+    histogramdict=dict(alllist) 
+    if len(blacklist)>0:
+        blacklist,counts=zip(*blacklist)   
+        blacklist=[int(b)-1 for b in blacklist]
+    return listdict, sorted(blacklist), histogramdict, needmores
 
 def explicitemosndim(version, keepers, orderedemos, orderedlabels):
     if version in ('ver2', 'ver2_control'):
@@ -234,7 +257,7 @@ def extractndimdata(datafile, excludecols, othercols, columndict, item2emomappin
                 if len(emotion)>1:
                     print "warning something strange"
                 maxemo, explicitjudgments=findexplicits(explicit, subjdata, version, sqlnames)
-                entry=Entry(rownum=subjdata[rowindex], subjid=subjdata[nameindex], version=version, label=subjdata[labelind[0]], emo=emotion[0], dimvect=dimvect, check=subjdata[checkindex], explicit=explicitjudgments, maxemo=maxemo) #eac subj saw single emo/quest so we can just rovide the value from the first of these columns            
+                entry=Entry(final=subjdata[submissionindex]!='NULL', rownum=subjdata[rowindex], subjid=subjdata[nameindex], version=version, label=subjdata[labelind[0]], emo=emotion[0], dimvect=dimvect, check=subjdata[checkindex], explicit=explicitjudgments, maxemo=maxemo) #eac subj saw single emo/quest so we can just rovide the value from the first of these columns            
                 entries.append(entry)            
                 item2emomappingobsvered[subjdata[labelind[0]]]=subjdata[emoind[0]] #okay to do this in each row since it will just rewrite existing ones andthe mapping is the same for all subjects
             except:

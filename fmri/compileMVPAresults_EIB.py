@@ -21,9 +21,10 @@ class data():
         self.accuracies=accuracies 
 
 olddir='/users/amyskerry/documents/analysis2/EIB_classificationsOLD/specifics/'
+tempdir='/users/amyskerry/documents/analysis2/EIB_classificationsTEMP/specifics/'
 newdir='/users/amyskerry/documents/analysis2/EIB_classificationsNEW/specifics/'
 ROIlist=['DMPFC_tomloc','MMPFC_tomloc','VMPFC_tomloc','RTPJ_tomloc','LTPJ_tomloc', 'RSTS_tomloc','LSTS_tomloc','PC_tomloc','rOFA_kan','rFFA_kan','rSTS_kan','lSTS_peelen','rSTS_peelen','rpSTS_BDbiomot']
-ROIstatus=['old','old','old','old','old','old','old','old', 'new', 'new', 'new', 'old', 'old', 'new']
+ROIstatus=['old','old','old','old','old','old','old','old', 'new', 'new', 'new', 'new', 'new', 'new']
 #newdir='/users/amyskerry/documents/analysis2/ASD_classification_temp/specifics/'
 #ROIlist=['DMPFC_tomloc','MMPFC_tomloc','VMPFC_tomloc','RTPJ_tomloc','LTPJ_tomloc', 'RSTS_tomloc','LSTS_tomloc','PC_tomloc','rOFA_kan','rFFA_kan','rSTS_kan','lSTS_peelen','rSTS_peelen','rpSTS_BDbiomot']
 #ROIstatus=['new','new','new','new','new','new','new','new', 'new', 'new', 'new', 'new', 'new', 'new']
@@ -38,7 +39,9 @@ for roin,thisroi in enumerate(ROIlist):
         thisselector=selectors[discn]
         if ROIstatus[roin]=='old':
             rootdir=olddir
-        else:
+        elif ROIstatus[roin]=='temp':
+            rootdir=tempdir
+        elif ROIstatus[roin]=='new':
             rootdir=newdir
         thisresultfile=rootdir+thisroi+ '*'+thisdisc+'*'+thisselector+'*groupavgs.mat'
         files=glob.glob(thisresultfile)    
@@ -61,7 +64,7 @@ for dataset in alldata:
                 alldata.append(data(roi=curroi, disc='negVSposABSTRACT', selector='_crossruns', accuracies=combined))
 discriminations.append('negVSposABSTRACT')
 selectors.append('_crossruns')
-print 'tests of classification accuracies (one-sided one sample t test against chance of .5)'
+print 'tests of classification accuracies (one-tailed one sample t test against chance of .5)'
 for discn,disc in enumerate(discriminations):
     sel=selectors[discn]
     print 'disc='+disc+', selector='+sel
@@ -84,7 +87,7 @@ for discn,disc in enumerate(discriminations):
                 #string2=roi+': M=%.3f, t(%.0f)=%.3f,p=%.3f.' %(meanacc,df,t2,p2)
                 print string
                 #print string2
-print 'comparions of classification accuracies (two-sided paired samples t test)'
+print 'comparions of classification accuracies (one-tailed paired samples t test)'
 comparisonsets=[['negfVSposf','negVSposABSTRACT'],['negfVSposf','negcVSposc'],['socialnVSsocialp','nonsocnVSnonsocp']]
 selectorsets=[['_runs', '_crossruns'],['_runs', '_runs'],['_runs','_runs']]
 for comparen,compare in enumerate(comparisonsets):
@@ -105,8 +108,8 @@ for comparen,compare in enumerate(comparisonsets):
             #[t2,p2]=smws.ztest(keepers, value=.5, alternative='larger') smws is off in the pvalues... unclear why
             meanA=np.mean(compA)
             meanB=np.mean(compB)
-            df=len(compA)-2
-            string=roi+': M=%.3f, M=%.3f, t(%.0f)=%.3f,p=%.3f.' %(meanA,meanB,df,t,p) #dividing by two for one-tailed test
+            df=len(compA)-1
+            string=roi+': M=%.3f, M=%.3f, t(%.0f)=%.3f,p=%.3f.' %(meanA,meanB,df,t,p/2) #divide p by two for one-tailed test
             print string
 analysissets=['Medial Prefrontal Cortex', 'Posterior Superior Temporal Cortex', 'Face regions', 'Theory of mind regions']
 setrois={'Medial Prefrontal Cortex':['DMPFC_tomloc','MMPFC_tomloc','VMPFC_tomloc'], 'Posterior Superior Temporal Cortex':['lSTS_peelen','rSTS_peelen'],'Face regions':['rOFA_kan','rFFA_kan','rSTS_kan'], 'Theory of mind regions':['RTPJ_tomloc','LTPJ_tomloc', 'RSTS_tomloc','LSTS_tomloc','PC_tomloc']}
@@ -139,7 +142,10 @@ for analysis in analysissets:
                     axislabels.append(labeldict[disc])
         base=np.array([0 for el in allplotsmean])
         colors=['g','b','r']
-        fig, axis = plt.subplots(1, figsize=[1,4]) 
+        colors=sns.color_palette(['#3E7C10','#6666C2', '#884433'])
+        sns.set_axes_style('nogrid', 'notebook')
+        sns.despine()
+        fig, axis = plt.subplots(1, figsize=[2.6,4]) 
         for valn,val in enumerate(allplotsmean):
             means=[el for el in base]
             means[valn]=val

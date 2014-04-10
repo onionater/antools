@@ -14,10 +14,14 @@ import analyzeNDIM as ndim
 import NDIM_analysiswrappers as ndaw
 import analyzeNDE as nde_data
 
+#checkthresh=5 #threshold for considering each entry a check passer or not (don't include any entry < this value)
+#subjavgcheckthresh=8 #threshold for avgcheckscore for a subject to be included (if a subject on average rated the check below this value, exclude all their responses)
+
+
 # <codecell>
 
 ##set whether you are analyzing pilot study or real, and specify files accordingly (setfiles has hardcoded features)
-version='ver2'#or 'pilot' or 'ver2_control'
+version='ver2_control'#or 'pilot' or 'ver2_control' or 'ver2asd'
 exclusioncriteria={'badsubjects':True, 'weirdlines':False, 'passedcheck':True, 'correctemotion':False}
 rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim.setfiles(version)
 
@@ -25,13 +29,13 @@ rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim
 
 ## set values for nde and ndim (setndevals and setndimvals has hardcoded but potentally relevant features)
 ndecheckquestions, ndeexpectedanswers, ndeinclusioncols, orderedemos=ndim.setndevals(version)
-suffix='allvars'#'basicemoset'#'valencearousalset'#'allvars' #to restrict analysis use 'vonly' or 'nv'
+suffix='basicemoset'#'basicemoset'#'valencearousalset'#'allvars' #to restrict analysis use 'vonly' or 'nv'
 orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, defaultdimordering, explicit, othercols,valenceddims, columndict, suffixmappings, excludecols=ndim.setndimvals(version, suffix, appraisalfile, stimfile)
 
 # <codecell>
 
 ## run nde analyses and create figs
-nde_data.main(nderesultsfile, ndecheckquestions,ndeexpectedanswers,ndeinclusioncols,orderedemos)
+#printsave#nde_data.main(nderesultsfile, ndecheckquestions,ndeexpectedanswers,ndeinclusioncols,orderedemos)
 #print nderesultsfile
 
 # <codecell>
@@ -62,12 +66,22 @@ if exclusioncriteria['correctemotion']:
 if exclusioncriteria['badsubjects']:
     keepers=[entry for entry in keepers if entry.subjid not in badsubjectnames] #limiting to those who pass the subject-level checks specified in checkforbadsubjects (including timing and overall accuracy on manipulation checks: if subjects are guessing randomly on manipulation checks, we want to exlude all their responses, not just the items where they fail)
     print str(len(keepers)) +" retained after removing bad subjects"
+#hand remove entries if needed
+if version=='ver2_control':
+    excludes=('120', '365', '1211', '616', '327', '783','1014','918','1225','1567','943','856','1494','1238','418')
+elif version=='ver2':
+    excludes=('1448', '1774','882','126','29')
+elif version=='ver2asd':
+    excludes=()
+keepers=[k for k in keepers if k.rownum not in excludes]
+if len(excludes)>0:
+    print str(len(keepers)) +" retained after removing bad entries by hand"
 keeperlabels=[keep.label for keep in keepers]
 keeperemos=[keep.emo for keep in keepers]
 
 # <codecell>
 #look at individual difference data
-ndim.analyzesubjects([subj for subj in subjects if subj.subjid not in badsubjectnames], version)
+#printsave#ndim.analyzesubjects([subj for subj in subjects if subj.subjid not in badsubjectnames], version)
 
 # <codecell>
 #housekeeping
@@ -75,6 +89,13 @@ qlabels=set(keeperlabels)
 emolabels=set(keeperemos)
 orderedlabels, orderedemos=ndim.orderlists(list(emolabels),list(qlabels),keepers,orderedemos,item2emomapping) #molabels are randomly orded, here use manually sorted labels:
 keepers, numstimsperemo=ndim.assignCVfolds(keepers,item2emomapping) #add cv relevant indices to keeper entries
+
+# <codecell>
+#check hit counts
+hitthresh=5
+listdict, blacklist, histogramdict, needmores=ndim.checkitemcounts(orderedlabels, keepers, hitthresh)
+print blacklist
+print listdict
 
 # <codecell>
 #get accuracy data from ndim subjects
@@ -86,8 +107,10 @@ itemavgs,itemlabels,itememos,emoavgs,dimavgs=ndaw.basicdescriptives(keepers,orde
 # <codecell>
 
 #can limit to a subset of emos
+allbut2subset=[e for e in orderedemos if not e in ('Disgusted', 'Surprised')]
 #basicsubsetemos=['Afraid', 'Joyful', 'Disgusted', 'Sad', 'Surprise', 'Angry']
-#[itemavgs, itemlabels, itememos, emoavgs, emolabels]=ndim.reduce2subset(basicsubsetemo,itemavgs, itemlabels, itememos, emoavgs, emolabels)
+itemavgs, itemlabels, itememos, emoavgs, emolabels=ndim.reduce2subset(allbut2subset,itemavgs, itemlabels, itememos, emoavgs, list(emolabels))
+orderedlabels, orderedemos=ndim.orderlists(list(emolabels),list(itemlabels),keepers,orderedemos,item2emomapping) #molabels are randomly orded, here use manually sorted labels:
 
 # <codecell>
 

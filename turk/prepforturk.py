@@ -18,19 +18,21 @@ def makekeycode(n,c):
 def makethestuff(base,conds,numhitpercond,cbvers,batch):
     names=[]
     keys=[]    
+    blacklist=[0, 5, 10, 15, 30, 40, 45, 48, 51, 55, 66, 70, 77, 79, 81, 82, 83, 85, 87, 88, 89, 92, 95, 118, 125, 126, 134, 154, 160, 163, 169, 172, 179, 182]
     cblabels=list(string.ascii_lowercase[0:cbvers])
     for c in conds:
-        for cb in cblabels: 
-            
-            for n in range(numhitpercond):
-                if n<9:
-                    num='0'+str(n+1)
-                else:
-                    num=str(n+1)
-                namest=base+str(batch+1)+cb+'_'+c+'_'+num
-                names.append(namest)
-                keys.append(makekeycode(n,c))
-                #do the other things
+        if int(c[1:]) not in blacklist:
+            for cb in cblabels: 
+                
+                for n in range(numhitpercond):
+                    if n<9:
+                        num='0'+str(n+1)
+                    else:
+                        num=str(n+1)
+                    namest=base+str(batch+1)+cb+'_'+c+'_'+num
+                    names.append(namest)
+                    keys.append(makekeycode(n,c))
+                    #do the other things
     return names, keys
 def makethestuffrand(base,conds,numhitpercond,cbvers,batch):
     names, keys=makethestuff(base,conds,numhitpercond,cbvers,batch)
