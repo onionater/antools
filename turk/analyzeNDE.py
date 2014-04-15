@@ -78,7 +78,7 @@ def scoreitems(sqlnames,datamatrix,checkqs,*args):
             correct_ans_per_item[iteman]=itema[0]
     return itemlabels, correct_ans_per_item, accuracy_per_item, actual_responses_per_item, num_responses_per_item
     
-def condenseaccuracies(sqlnames,stimavgs,answers,checkqs, responses, *args):
+def condenseaccuracies(sqlnames,stimavgs,answers,checkqs, responses, eliminateemos, *args):
     if args:
         emos=args[0]
     else:
@@ -99,7 +99,7 @@ def condenseaccuracies(sqlnames,stimavgs,answers,checkqs, responses, *args):
     for respnum,resp in enumerate(responses):
         for itemn,item in enumerate(itemlabels):
             correct=answers[itemn]
-            if correct not in ('NULL',):
+            if correct not in ('NULL',) and correct not in eliminateemos:
                 correctindex=emos.index(correct)
             try:
                 respindex=emos.index(resp[itemn])
@@ -134,14 +134,16 @@ def condenseaccuracies(sqlnames,stimavgs,answers,checkqs, responses, *args):
     plt.show()
     return emos, emoaccs, emomatrixcounts, emomatrixpercent
 
-def printdeets(qlabels, counts, stimmeans, blacklist, maxN):
+def printdeets(qlabels, counts, stimmeans, blacklist, maxN, showblacklist):
     pstring=[q+': '+str(counts[qn])+', ' for qn,q in enumerate(qlabels)]
     avgaccuracy=np.nanmean(stimmeans)
     nextstring=''.join(pstring)
     #print nextstring[:-2]
     nextstring= 'blacklist the following items (have>'+str(maxN)+' responses): ' + ''.join(["'"+str(b)+"'"+', ' for b in blacklist])
-    print nextstring[:-2]
+    if showblacklist:    
+        print nextstring[:-2]
     print 'average accuracy across items: '+str(avgaccuracy)+'%'
+    return avgaccuracy
 
 def displaybestitems(labels, answers, stimmeans):
     accthresh=.8
@@ -150,7 +152,9 @@ def displaybestitems(labels, answers, stimmeans):
     print bestitems
     return bestitems
 
-def main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos, maxN=12, showblacklist=0):
+def main(resultsfile, checkquestions,expectedanswers,inclusioncols, allorderedemos, eliminateemos, maxN=12, showblacklist=0):
+    print '*****analyzing NDE data*****'
+    orderedemos=[e for e in allorderedemos if e not in eliminateemos]
     [varnames,datamatrix]=extractdata(resultsfile)
     checkfailers=findcheckfailers(datamatrix, varnames, checkquestions, expectedanswers)
     incfailers=testinclusioncrit(datamatrix, varnames, inclusioncols)
@@ -165,11 +169,11 @@ def main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos,
     axes[1].bar(range(len(stimmeans)), counts)
     axes[1].set_xlim([0,len(stimmeans)])
     axes[1].set_title('counts')
-    [emonames, emoaccuracies, emoerrorcounts, emoerrors]=condenseaccuracies(varnames, stimmeans,answers,checkquestions, responses,orderedemos)
+    [emonames, emoaccuracies, emoerrorcounts, emoerrorpercents]=condenseaccuracies(varnames, stimmeans,answers,checkquestions, responses,eliminateemos,orderedemos)
     blacklist=[l for ln, l in enumerate(labels) if counts[ln]>maxN]
-    if showblacklist:    
-        printdeets(labels, counts, stimmeans, blacklist, maxN)
-    
+    avgaccuracy=printdeets(labels, counts, stimmeans, blacklist, maxN,showblacklist)
+    return avgaccuracy, emoerrorpercents
+
         
 if __name__=='__main__':
     #hardcoding
@@ -181,5 +185,5 @@ if __name__=='__main__':
     #orderedemos=['Grateful', 'Joyful','Hopeful','Proud','Impressed','Content','Nostalgic', 'Surprise','Lonely', 'Angry','Afraid','Apprehensive','Annoyed', 'Guilty', 'Disgusted','Embarrassed','Sad', 'Disappointed']
     maxN=12 #blacklist questions with this many or more
     inclusioncols={'submission_date': (lambda inputval: inputval not in ('NULL',))} #key=column, value=function returning whether given item is a keeper
-    main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos)
+    avgaccuracy, emoerrorpercents=main(resultsfile, checkquestions,expectedanswers,inclusioncols, orderedemos)
     

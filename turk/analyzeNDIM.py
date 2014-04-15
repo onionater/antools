@@ -10,12 +10,16 @@ sys.path.append('/Users/amyskerry/Dropbox/antools/utilities')
 import csv
 from collections import Counter,OrderedDict
 import aesbasicfunctions as abf
+import aesstats as astat
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fmnger
 from sklearn import svm, cluster, decomposition
+from sklearn.cross_decomposition import PLSRegression
 import seaborn as sns
+import datetime
+import scipy
 
 
 #default style parameters
@@ -24,16 +28,34 @@ medfig=[6,4]
 checkthresh=5 #threshold for considering each entry a check passer or not (don't include any entry < this value)
 subjavgcheckthresh=8 #threshold for avgcheckscore for a subject to be included (if a subject on average rated the check below this value, exclude all their responses)
 
+class Analysis():
+    def __init__(self, version=[], usenormed=[], checkthresh=[], subjavgcheckthresh=[], exclusioncriteria=[], suffix=[], savepath=[], eliminateemos=[], item2emomapping=[], alldims=[], allemos=[], allitems=[]):
+        self.version=version
+        self.checkthresh=checkthresh
+        self.usenormed=usenormed
+        self.subjavgcheckthresh=subjavgcheckthresh
+        self.date=datetime.datetime.now().strftime("%Y-%m-%d")
+        self.exclusioncriteria=exclusioncriteria
+        self.suffix=suffix 
+        self.savepath=savepath
+        self. eliminateemos=eliminateemos
+        self.item2emomapping=item2emomapping
+        self.alldims=alldims
+        self.allemos=allemos
+        self.allitems=allitems
+
 class Entry():
-    def __init__(self, thresh=checkthresh, final=[],rownum=[],subjid=[],version=[], label=[], emo=[], dimvect=[], check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
+    def __init__(self, thresh=checkthresh, final=[],rownum=[],subjid=[],version=[], label=[], emo=[], dimvect=[], groupstddimvect=[], groupavgdimvect=[],check=[], correctemorating=[], maxemo=[], stimnum=[], subjnum=[], evenodd=[], explicit=[]):
         self.thresh=thresh
-        self.final=final
+        self.final=final #is this the last entry for a subject
         self.rownum=rownum        
         self.subjid=subjid
         self.version=version
         self.label=label #stimlabel
         self.emo=emo
         self.dimvect=dimvect
+        self.groupavgdimvect=groupavgdimvect
+        self.groupstddimvect=groupstddimvect
         self.check=int(check)
         self.correctemorating=correctemorating
         self.evenodd=evenodd #split data for each item into two CV halves
@@ -46,6 +68,12 @@ class Entry():
         self.explicit=explicit
         self.explicitfit=1
         self.dimensionfit=1 #how well does the dimvect align with the group
+    @property
+    def normalizeddimvect(self):
+        dimmeans=self.groupavgdimvect
+        dimstds=self.groupstddimvect
+        normalized=[(el-dimmeans[eln])/dimstds[eln] for eln, el in enumerate(self.dimvect)]
+        return normalized
         
 class Stimulus():
     def __init__(self,qlabel=[],emotion=[],	num=[],valence=[],source=[],person=[],contentsummary=[],lengthinwords=[],durationinsecs=[],stimcontent=[]):
@@ -78,9 +106,9 @@ class Subject():
         self.needverbal=10-abf.float_or_nan(needverbal)
         self.facevoice=10-abf.float_or_nan(facevoice)
         self.surprised=10-abf.float_or_nan(surprised)
-        self.specificEIQ=np.mean([float(self.noface), float(self.needverbal), float(self.facevoice), float(self.surprised)])
+        self.specificEIQ=np.nanmean([float(self.noface), float(self.needverbal), float(self.facevoice), float(self.surprised)])
         self.generalEIQ=self.nothought
-        self.allEIQ=np.mean([float(self.specificEIQ), float(self.generalEIQ)])
+        self.allEIQ=np.nanmean([float(self.specificEIQ), float(self.generalEIQ)])
         self.included=[]
     @property
     def avgcheckscore(self):
@@ -92,8 +120,8 @@ class Subject():
         return explicitscore, dimensionscore
 
 def makesubject(entries, existingsubjects, colnames, subjdata, nameindex, rowindex, incindex, checkindex, version, subjectthresh=8):
-    subjname=subjdata[nameindex]
-    existingsubswithname=searchobjects(existingsubjects, {'subjid':subjname})
+    subjnamecsv=subjdata[nameindex]
+    existingsubswithname=searchobjects(existingsubjects, {'subjid':subjnamecsv})
     if version in ('ver2', 'ver2_control'):
         columns=['submission_date', 'gender', 'age', 'city', 'country', 'thoughts', 'response_noface', 'response_nothought', 'response_needverbal', 'response_facevoice', 'response_surprised']
     elif version=='pilot':
@@ -102,26 +130,42 @@ def makesubject(entries, existingsubjects, colnames, subjdata, nameindex, rowind
     for column in columns:
         md[column]=colnames.index(column)
     if len(existingsubswithname)>0:
-        subjname=subjname+'duplicate'
-    if version in ('ver2', 'ver2_control'):
+        a=0
+        existings=[1]
+        previouslastrow=existingsubswithname[-1].finalrownum
+        while len(existings)>0:
+            a=a+1
+            existings=searchobjects(existingsubjects, {'subjid':subjnamecsv+'dup'+str(a)})
+            if existings:
+                previouslastrow=existings[-1].finalrownum
+        subjname=subjnamecsv+'dup'+str(a)
+    else:
+        subjname=subjnamecsv
+    if version in ('ver2', 'ver2_control', 'ver2asd'):
         subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], version=version, gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']], noface=subjdata[md['response_noface']], nothought=subjdata[md['response_nothought']], needverbal=subjdata[md['response_needverbal']], facevoice=subjdata[md['response_facevoice']], surprised=subjdata[md['response_surprised']])
     elif version=='pilot':
         subject=Subject(subjid=subjname, finalrownum=subjdata[rowindex], subdate=subjdata[md['submission_date']], version=version, gender=subjdata[md['gender']], age=subjdata[md['age']], city=subjdata[md['city']], country=subjdata[md['country']], thoughts=subjdata[md['thoughts']])
-    relevantentries=searchobjects(entries, {'subjid':subjname})
+    if len(existingsubswithname)==0:
+        relevantentries=searchobjects(entries, {'subjid':subjname})
+    elif len(existingsubswithname)>0:
+        relevantentries=searchobjects(entries, {'subjid':subjnamecsv})
+        relevantentries=[e for e in relevantentries if int(e.rownum)>int(previouslastrow)]
+        for e in relevantentries:
+            e.subjid=subjname #update the subjids on those entries
     subject.checkscores=[row.check for row in relevantentries]
     subject.rownums=[row.rownum for row in relevantentries]
     subject.included=np.mean(subject.checkscores)>subjectthresh
     return subject
     
 def analyzesubjects(subjects, version):
-    if version in ('ver2', 'ver2_control'):
-        noface=[subj.noface for subj in subjects]
-        facevoice=[subj.facevoice for subj in subjects]
-        nothought=[subj.nothought for subj in subjects]
-        needverbal=[subj.needverbal for subj in subjects]
-        surprised=[subj.surprised for subj in subjects]
-        specific=[subj.specificEIQ for subj in subjects]
-        general=[subj.generalEIQ for subj in subjects]
+    if version in ('ver2', 'ver2_control', 'ver2asd'):
+        noface=[subj.noface for subj in subjects if not np.isnan(subj.noface)]
+        facevoice=[subj.facevoice for subj in subjects if not np.isnan(subj.facevoice)]
+        nothought=[subj.nothought for subj in subjects if not np.isnan(subj.nothought)]
+        needverbal=[subj.needverbal for subj in subjects if not np.isnan(subj.needverbal)]
+        surprised=[subj.surprised for subj in subjects if not np.isnan(subj.surprised)]
+        specific=[subj.specificEIQ for subj in subjects if not np.isnan(subj.specificEIQ)]
+        general=[subj.generalEIQ for subj in subjects if not np.isnan(subj.generalEIQ)]
         scounts, slabels=np.histogram(specific, bins=20)
         gcounts, glabels=np.histogram(general, bins=20)
         fig, axes=plt.subplots(3)
@@ -143,13 +187,15 @@ def analyzesubjects(subjects, version):
         axes[3,1].scatter(nothought,needverbal); axes[3,1].set_xlabel('nothought'); axes[3,1].set_ylabel('needverbal')
         axes[0,2].scatter(nothought,surprised); axes[0,2].set_xlabel('nothought'); axes[0,2].set_ylabel('surprised')
         axes[1,2].scatter(needverbal,surprised); axes[1,2].set_xlabel('needverbal'); axes[1,2].set_ylabel('surprised')
-
+        subjectresults={'scounts':scounts, 'slabels':slabels, 'gcounts':gcounts, 'glabels':glabels}        
+        return subjectresults
 def checkselectivity(stimavgs, orderedemos, entry, label):
+    theseavgs=np.copy(stimavgs)
     selectivitythresh=-2
     accthresh=0
-    correctemo=stimavgs[orderedemos.index(entry.emo)]
-    stimavgs[orderedemos.index(entry.emo)]=np.nan
-    nextmax=max(stimavgs)
+    correctemo=theseavgs[orderedemos.index(entry.emo)]
+    theseavgs[orderedemos.index(entry.emo)]=np.nan
+    nextmax=max(theseavgs)
     selectivity=correctemo-nextmax
     if selectivity>selectivitythresh and correctemo>accthresh:
         return label
@@ -177,13 +223,15 @@ def checkitemcounts(orderedlabels, keepers, hitthresh):
     return listdict, sorted(blacklist), histogramdict, needmores
 
 def explicitemosndim(version, keepers, orderedemos, orderedlabels):
-    if version in ('ver2', 'ver2_control'):
+    if version in ('ver2', 'ver2_control', 'ver2asd'):
         labelXemo=[]
         selectiveitems={emo:[] for emo in orderedemos}
         for label in orderedlabels:
             relentries=[keep for keep in keepers if keep.label==label]
             stimvector=[]
             for entry in relentries:
+                vect= [abf.float_or_nan(entry.explicit[rowemo+'_extent']) for rowemo in orderedemos]
+                nanfail=[el for el in vect if np.isnan(el)]
                 stimvector.append([abf.float_or_nan(entry.explicit[rowemo+'_extent']) for rowemo in orderedemos])
             if len(stimvector)==1:
                 stimavgs=stimvector[0]
@@ -195,8 +243,11 @@ def explicitemosndim(version, keepers, orderedemos, orderedlabels):
             labelXemo.append(np.array(stimavgs))
         fig, ax=plt.subplots(1)
         ax.pcolor(np.array(labelXemo), cmap='hot')
-        ax.set_xticklabels(orderedemos)
+        ax.set_xticks(range(len(orderedemos)))
+        ax.set_xticklabels(orderedemos, rotation='vertical')
+        ax.set_yticks(range(len(orderedlabels)))
         ax.set_yticklabels(orderedlabels)
+        ax.set_title('item x explicit emotion rating')
         emoXemo=[]
         for emo in orderedemos:
             relentries=[keep for keep in keepers if keep.emo==emo]
@@ -209,13 +260,36 @@ def explicitemosndim(version, keepers, orderedemos, orderedlabels):
                 emoXemo.append(np.mean(emovector, 0))
         fig, ax=plt.subplots(1)
         ax.pcolor(np.array(emoXemo), cmap='hot')
-        ax.set_xticklabels(orderedemos)
+        ax.set_xticks(range(len(orderedemos)))
+        ax.set_xticklabels(orderedemos,rotation='vertical')
+        ax.set_yticks(range(len(orderedemos)))
         ax.set_yticklabels(orderedemos)
+        ax.set_title('intended emo x explicit emotion rating')
     else:
         labelXemo='not applicable'
         emoXemo='not applicable'
         selectiveitems='not applicable'
     return labelXemo, emoXemo, selectiveitems
+ 
+def analyzepredictedexplicits(orderedlabels, labelxemo, curritemlabels, oldmatrix, emolabels,title):   
+    oldordering=zip(curritemlabels,oldmatrix)
+    newordering=[tup for el in orderedlabels for tup in oldordering if tup[0]==el]
+    ls, reordered_predlabelxemo=zip(*newordering)
+    newmatrix=reordered_predlabelxemo
+    plotmatrix=np.copy(newmatrix)
+    labelxemocomparisons=corr2similarityspaces(labelxemo, newmatrix)
+    for rown,row in enumerate(plotmatrix):
+        for columnn, column in enumerate(row):
+            if np.isnan(column):
+                plotmatrix[rown][columnn]=-1 #for purposes of plotting, set nans (imposed by excludeselfemo) to 500. these don't enter into labelxemocomparisons
+    fig, ax=plt.subplots(1)
+    ax.pcolor(np.array(plotmatrix), cmap='hot')
+    ax.set_xticks(range(len(emolabels)))
+    ax.set_xticklabels(emolabels, rotation='vertical')
+    ax.set_yticks(range(len(orderedlabels)))
+    ax.set_yticklabels(orderedlabels)
+    ax.set_title(title)
+    return newmatrix,labelxemocomparisons
 
 def searchobjects(objects, criteria):
     '''takes dict of critera and searches for entries that match''' 
@@ -230,6 +304,7 @@ def searchobjects(objects, criteria):
 
 def extractndimdata(datafile, excludecols, othercols, columndict, item2emomapping, explicit, version, exclusioncriteria, *args):
     '''get the data from an excel file, returns good subject, list of relevant dimensions, and list of stim to emotion category mappings '''
+    print "***extracting ndim data from csv***"    
     item2emomappingobsvered={}
     with open(datafile, 'rU') as csvfile:
         reader = csv.reader(csvfile)
@@ -303,6 +378,17 @@ def checkforbadsubjects(subjects, subjavgcheckthresh):
     #implement checker that goes into turk csvs and checks' how long turker spent on the task
     return bads, avgs
           
+def computegroupavgs(keepers,newdimordering):
+    means=[]
+    stds=[]
+    for a in range(len(newdimordering)):
+        values=[k.dimvect[a] for k in keepers]
+        means.append(np.mean(values))
+        stds.append(np.std(values))
+    for k in keepers:
+        k.groupavgdimvect=means
+        k.groupstddimvect=stds
+    return keepers
     
 def setfiles(version):
     if version=='pilot':
@@ -399,19 +485,19 @@ def sanitycheck(subject, nameindex, labelindices, dimindices, emoindices):
     maxnumemos=len(emos)
     subjid=subject[nameindex]
     if len(items)>1:
-        print subjid+": too many items: " 
-        print Counter(subjitems)
+        #print subjid+": too many items: " 
+        #print Counter(subjitems)
         passed=False
     if len(emos)>1:
         if maxnumemos-1 in Counter(subjemos).values():
             pass #if there's just one bad column, don't worry
         else:
-            print subjid+": too many emotions: " 
+            #print subjid+": too many emotions: " 
             #print emos
             passed=False
-            print Counter(subjemos)
+            #print Counter(subjemos)
     if 'NULL' in responses:
-        print subjid+": contains null responses"
+        #print subjid+": contains null responses"
         passed=False
     return passed
     
@@ -430,9 +516,9 @@ def checkmappings(data, rowindex, idealmapping, observedmapping):
     print "******checking mappings******"
     for key in observedmapping.keys():
         if idealmapping[key]!=observedmapping[key]:
-            print "mistmatch for " +key
-            print "expected: "+idealmapping[key]
-            print "observed: "+observedmapping[key] 
+            #print "mistmatch for " +key
+            #print "expected: "+idealmapping[key]
+            #print "observed: "+observedmapping[key] 
             bads.append(key)
             sources.append([row[rowindex] for row in data if observedmapping[key] in row and key in row])
     return bads, sources
@@ -462,33 +548,47 @@ def assignCVfolds(keepers, item2emomapping):
         for entry in entries:
             entry.stimnum=relnums[relevantlabels.index(entry.label)]+1
     return keepers, max(itemcounts)
+
+def corr2similarityspaces(space1,space2):
+    vector1=np.array(space1).flatten()
+    vector2=np.array(space2).flatten()
+    rvalue, pvalue,n=astat.nancorr(vector1,vector2)
+    transformedrvalue=np.arctanh(rvalue) # equivalent to 0.5*np.log((1+rvalue)/(1-rvalue))
+    return {'pearsonr':rvalue, 'transformedr':transformedrvalue, 'pval':pvalue, 'N':n}
     
-def getitemavgs(keepers, items,**kwargs):
+def getitemavgs(keepers, items,eliminateemos=(),orderedemos=[], item2emos=[], **kwargs):
     ''' prints vector of avg dimension scores (avg across subjects) for each item, as well as vector of item labels and their corresponding emotions'''
     for condition in kwargs:
         #print "eliminating if " +condition+ ' not equal to ' + str(kwargs[condition])
         keepers=[keep for keep in keepers if getattr(keep,condition)==kwargs[condition]] # continues to eliminate for each kwarg (mainly for selecting cv based on hitnum)
     itemvects=[]
+    normalizeditemvects=[]
     newitems=[]
     itememos=[]
     foundatleast1=0
     for lan, la in enumerate(items):
-        subset=np.array([keep.dimvect for keep in keepers if keep.label==la]) #datavectors for the stimulus
-        keeps=[keep for keep in keepers if keep.label==la] #full entries for the stimulus
+        vectors=[keep.dimvect for keep in keepers if keep.label==la and keep.emo not in eliminateemos]
+        normedvectors=[keep.normalizeddimvect for keep in keepers if keep.label==la and keep.emo not in eliminateemos]
+        subset=np.array(vectors) #datavectors for the stimulus
+        normedsubset=np.array(normedvectors)
+        keeps=[keep for keep in keepers if keep.label==la and keep.emo not in eliminateemos] #full entries for the stimulus
         try:
             emo=keeps[0].emo
             try:
                 dimavg=np.mean(subset,0)
+                normeddimavg=np.mean(normedsubset,0)
             except:
                 print 'warning: there were some nans in your dimension vectors for stim ' + la +' (emo=' + emo + ')'
                 dimavg=np.nanmean(subset,0)
-            if not any([np.isnan(val) for val in dimavg]):
+                normeddimavg=np.nanmean(normedsubset,0)
+            if any([np.isnan(val) for val in dimavg]):
+                print "warning: some dimensions had nan avgs"
+            else:
                 itemvects.append(dimavg)
+                normalizeditemvects.append(normeddimavg)
                 newitems.append(la) #limited to labels for which there are keepers
                 itememos.append(emo)
                 foundatleast1=1
-            else:
-                print "warning: some dimensions had nan avgs"
         except:
             #print "warning: no entries for item " + la
             pass
@@ -498,28 +598,36 @@ def getitemavgs(keepers, items,**kwargs):
         append=""
     if foundatleast1==0:
         print "warning: fold contains no items"+append
-    else:
-        print "found "+str(len(itemvects)) +append
-    return itemvects, newitems, itememos
+    return itemvects, normalizeditemvects, newitems, itememos
 
-def getemoavgs(keepers, emolabels, **kwargs):
+def getemoavgs(keepers, emolabels,eliminateemos=(), **kwargs):
     numdims=len(keepers[0].dimvect) #assumes all subjects have same number of dimensions and pulls from first
     for condition in kwargs:
-        keepers=[keep for keep in keepers if getattr(keep,condition)==kwargs[condition]]
+        keepers=[keep for keep in keepers if getattr(keep,condition)==kwargs[condition] and keep.emo not in eliminateemos]
     emovects=[]
+    normedemovects=[]
     newemolabels=[]
-    foundatleast1=0
-    for la in emolabels:
-        subset=np.array([keep.dimvect for keep in keepers if keep.emo==la])
+    emolabels=[la for la in emolabels if la not in eliminateemos]
+    for lan,la in enumerate(emolabels):
+        vectors=[keep.dimvect for keep in keepers if keep.emo==la]
+        normedvectors=[keep.normalizeddimvect for keep in keepers if keep.emo==la]
+        subset=np.array(vectors)
+        normedsubset=np.array(normedvectors)
         if len(subset)>0:
             dimavg=np.mean(subset,0)
-            if not any([np.isnan(val) for val in dimavg]):
+            normeddimavg=np.mean(normedsubset,0)
+            if any([np.isnan(val) for val in dimavg]):
+                print "warning: some dimensions had nan avgs"
+            else:
                 emovects.append(dimavg)
-                newemolabels.append(la)
+                normedemovects.append(normeddimavg)
+                newemolabels.append(la) #limited to labels for which there are keepers
         else: 
+            print "HACK: missing data, setting whole vector to 5"
             emovects.append(np.array([5 for el in range(numdims)])) #temp hack, if no vecter set all to 5
+            normedemovects.append(np.array([0 for el in range(numdims)])) #temp hack, if no vecter set all to 5
             newemolabels.append(la)
-    return emovects, newemolabels  
+    return emovects, normedemovects, newemolabels  
     
 def plotcorrmatrix(savepath, title, axis, datamatrix, suffix,figuresize=[8,8],cmin=-1,cmax=1, cmapspec='RdYlBu_r'):
     '''plots correlation matrix for each row in the datamatrix (symmetrical, diagonal of 1)'''    
@@ -532,7 +640,7 @@ def plotcorrmatrix(savepath, title, axis, datamatrix, suffix,figuresize=[8,8],cm
     ax.set_xlabel(title)
     fig.savefig(savepath+suffix)
 def crossmatrixcorr(data):
-    '''computes correlations for each row across 2 matrices''' 
+    '''computes correlations for each row across multiple matrices''' 
     versions=range(len(data))
     combos=[combo for combo in itertools.combinations(versions,2)]
     corrmatrices=[]
@@ -544,6 +652,7 @@ def crossmatrixcorr(data):
     corrmeans=np.nanmean(np.array(corrmatrices),0)
     return corrmeans
 def plotweightmatrix(savepath,title, xaxis, yaxis, datamatrix, suffix,figuresize=[8,8],cmin=[],cmax=[], cmapspec='hot'):
+    '''plots weight/confusion matrix '''    
     fig=plt.figure(figsize=figuresize)   
     ax=plt.subplot()
     if type(cmin)!=list and type(cmax)!=list:
@@ -558,10 +667,11 @@ def plotweightmatrix(savepath,title, xaxis, yaxis, datamatrix, suffix,figuresize
     fig.savefig(savepath+suffix)
 
 ###math sections
-def classifymultiSVM(cvfolds, dataavgs, datalabels):
+def classifymultiSVM(cvfolds, dataavgs, datalabels, orderedemos):
     '''takes list of cv fold #s, list of dimvects for each fold and list list of labels for eachfold, returns classification results: details of the model, list of accuracies in each fold, chance'''
     accuracies=[]
     classdeets=[]
+    confusions=[]
     for inum,i in enumerate(cvfolds):
         testlabels=np.array([label for foldnum, fold in enumerate(datalabels) for label in fold if foldnum==inum]) #get relevant test indices
         trainlabels=np.array([label for foldnum, fold in enumerate(datalabels) for label in fold if foldnum!=inum]) #get relevant train indices
@@ -575,10 +685,76 @@ def classifymultiSVM(cvfolds, dataavgs, datalabels):
         corrects=[float(prediction==testlabels[pn]) for pn, prediction in enumerate(predictions)] #assess predictions
         if any(np.isnan(x) for x in corrects):
             print "oops, there were non numerical correctness values..." #shouldn't happen
+        confusionmatrix=[]
+        for emo in orderedemos:
+            emoguesses=np.array([str(prediction) for pn, prediction in enumerate(predictions) if testlabels[pn]==emo])
+            orderedemoguesses=[]
+            totalguesses=0
+#            print 'testlabels'
+#            print emoguesses
+#            print 'predictions'
+#            print emoguesses
+            for e in orderedemos:
+                thiscount=float(len([emoguess for emoguess in emoguesses if emoguess==e]))
+                orderedemoguesses.append(thiscount)
+                totalguesses=totalguesses+thiscount
+            normalizedcounts=[c/totalguesses for c in orderedemoguesses]
+            confusionmatrix.append(normalizedcounts)
+        confusions.append(confusionmatrix)
         accuracy=np.sum(corrects)/len(corrects) #compute accuracy
         accuracies.append(accuracy)
         classdeets.append(clf)
-    return classdeets, accuracies, chance
+    return classdeets, accuracies, chance, confusions
+
+def plsr(cvfolds, dataavgs, emoratings, emolist, allorderedemos, excludeselfemo=0):
+    '''the labelxemo stuff assumes that there is one summary representation per item in emoratings/dataavgs'''
+    allpredictions=[]
+    allactuals=[]
+    alldeviations=[]
+    classdeets=[]
+    realpredcorrelations=[]
+    predictionR2s=[]
+    plsregs=[]
+    dimcoefficients=[]
+    for inum,i in enumerate(cvfolds):
+        #test and traing ratings are ordered by orderedemos
+        testratings=np.array([rating for foldnum, fold in enumerate(emoratings) for rating in fold if foldnum==inum]) #get relevant test indices
+        trainratings=np.array([rating for foldnum, fold in enumerate(emoratings) for rating in fold if foldnum!=inum]) #get relevant train indices
+        testset=np.array([d for foldnum,fold in enumerate(dataavgs) for d in fold if foldnum==inum])
+        trainset=np.array([d for foldnum,fold in enumerate(dataavgs) for d in fold if foldnum !=inum])
+        #ncomp=2
+        ncomp=len(trainset[0]) #max number of components is number of predictors in each trainset vector
+        if inum==0:
+            print "n-components=" + str(ncomp)
+        plsreg=PLSRegression(n_components=ncomp, scale=True)
+        plsreg.fit(trainset, trainratings)
+        predictedemo = plsreg.predict(testset)
+        predictionR2s.append(plsreg.score(testset, testratings)) #will always include all emotions regardless of excludeselfemo status
+        deviations=[]
+        actuals=[]
+        thisfoldcorrelations=[]
+        predictedemos_updated=[]
+        for predn,pred in enumerate(predictedemo):
+            emo=emolist[predn]
+            emoindex=allorderedemos.index(emo)
+            actual=testratings[predn]
+            if excludeselfemo:
+                pred[emoindex]=np.nan
+                actual[emoindex]=np.nan
+            actuals.append(actual)
+            deviations.append([a-pred[an] for an, a in enumerate(actual)]) #will ignore selfemo if indicated
+            thisfoldcorrelations.append(astat.nancorr(pred,actual)[0]) #will ignore selfemo if indicated
+            predictedemos_updated.append(pred)
+        realpredcorrelations.append(thisfoldcorrelations)
+        allpredictions.append(predictedemo)
+        allactuals.append(actuals)
+        alldeviations.append(deviations)
+        #make a predicted labelxemo matrix that can be compated to labelxemo
+        predicted_labelxemo=[pred for fold in allpredictions for pred in fold]
+        plsregs.append(plsreg)
+        dimcoefficients.append(plsreg.coefs)
+    return {'plsregs':plsregs, 'dimcoefficients':np.mean(dimcoefficients,0),'orderedemos':allorderedemos, 'predictions':allpredictions, 'pred_labelxemo':predicted_labelxemo, 'actualratings':allactuals, 'deviations':alldeviations, 'realpredcorrs':realpredcorrelations, 'predictionR2s':predictionR2s}
+    
 def plotscree(pcs_var, title,figuresize=bigfig):
     fig = plt.figure(figsize=figuresize)
     x = np.arange(len(pcs_var)) + 1
@@ -661,6 +837,8 @@ def eigentable(emolabelmapping,evlabels,evvalues,**kwargs):
     string='eigenvector #'
     passedvals=[]
     passednames=[]
+    lowvals=[]
+    lownames=[]
     #find the eigenvectors that pass the threshold/are in top number 
     if 'thresh' in kwargs:
         thresh=kwargs['thresh']
@@ -674,13 +852,18 @@ def eigentable(emolabelmapping,evlabels,evvalues,**kwargs):
             evlabelvector=evlabels[evectorn]
             passedvals.append(evector[-num:])
             passednames.append(evlabelvector[-num:])
+            lowvals.append(evector[num:0:-1])
+            lownames.append(evlabelvector[num:0:-1])
     for namen, name in enumerate(passednames):
         try:
             names=list(name)
+            lnames=list(lownames[namen])
             emos=[emolabelmapping[ql] for ql in names]
-            printstring=string+str(namen+1)+'--- high-loaders: ' +', '.join(name) +'; emos: ' +', '.join(emos)+'; loadings: '+', '.join([str(round(x,3)) for x in passedvals[namen]])
+            emos2=[emolabelmapping[ql] for ql in lnames]
+            emos.extend(emos2)
+            printstring=string+str(namen+1)+'--- high-loaders: ' +', '.join(name) +'; low-loaders: '+', '.join(lownames[namen])+'; emos: ' +', '.join(emos)+'; loadings: '+', '.join([str(round(x,3)) for x in passedvals[namen]])+', '+', '.join([str(round(x,3)) for x in lowvals[namen]])
         except:
-            printstring=string+str(namen+1)+'--- high-loaders: ' +', '.join(name) +'; loadings: '+', '.join([str(round(x,3)) for x in passedvals[namen]])
+            printstring=string+str(namen+1)+'--- high-loaders: ' +', '.join(name) +'; low-loaders: '+', '.join(lownames[namen])+'; loadings: '+', '.join([str(round(x,3)) for x in passedvals[namen]])+', '+', '.join([str(round(x,3)) for x in lowvals[namen]])
         print printstring
     return passedvals, passednames
     
@@ -698,10 +881,12 @@ def reorderdims(newdimordering, excludecols, othercols, alldims):
         print mismatches2
     return newdimordering
 
-def reduce2subset(subset,itavgs, ilabels, iemos, emavgs, elabels):
+def reduce2subset(subset,itavgs, nitavgs, ilabels, iemos, emavgs, nemavgs, elabels):
     reduceditavgs=[item for itemn,item in enumerate(itavgs) if iemos[itemn] in subset]
+    reducednitavgs=[item for itemn,item in enumerate(nitavgs) if iemos[itemn] in subset]
     reducedilabels=[item for itemn,item in enumerate(ilabels) if iemos[itemn] in subset]
     reducediemos=[item for item in iemos if item in subset]
     reducedemavgs=[item for itemn,item in enumerate(emavgs) if elabels[itemn] in subset]
+    reducednemavgs=[item for itemn,item in enumerate(nemavgs) if elabels[itemn] in subset]
     reducedelabels=[item for item in elabels if item in subset]
-    return reduceditavgs,reducedilabels,reducediemos, reducedemavgs, reducedelabels
+    return reduceditavgs,reducednitavgs, reducedilabels,reducediemos, reducedemavgs,reducednemavgs, reducedelabels

@@ -13,6 +13,10 @@ import aesbasicfunctions as abf
 import analyzeNDIM as ndim
 import NDIM_analysiswrappers as ndaw
 import analyzeNDE as nde_data
+from analyzeNDIM import checkthresh as ct
+from analyzeNDIM import subjavgcheckthresh as sact
+import json
+import datetime
 
 #checkthresh=5 #threshold for considering each entry a check passer or not (don't include any entry < this value)
 #subjavgcheckthresh=8 #threshold for avgcheckscore for a subject to be included (if a subject on average rated the check below this value, exclude all their responses)
@@ -21,7 +25,9 @@ import analyzeNDE as nde_data
 # <codecell>
 
 ##set whether you are analyzing pilot study or real, and specify files accordingly (setfiles has hardcoded features)
-version='ver2_control'#or 'pilot' or 'ver2_control' or 'ver2asd'
+version='ver2'#or 'pilot' or 'ver2_control' or 'ver2asd'
+classifynormeddimvects=1 #0 to use raw dim vects, 1 to use zscores
+removeintendedemo=0
 exclusioncriteria={'badsubjects':True, 'weirdlines':False, 'passedcheck':True, 'correctemotion':False}
 rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim.setfiles(version)
 
@@ -30,14 +36,14 @@ rootdir, nderesultsfile, ndimresultsfile, stimfile, appraisalfile, savepath=ndim
 ## set values for nde and ndim (setndevals and setndimvals has hardcoded but potentally relevant features)
 ndecheckquestions, ndeexpectedanswers, ndeinclusioncols, orderedemos=ndim.setndevals(version)
 suffix='basicemoset'#'basicemoset'#'valencearousalset'#'allvars' #to restrict analysis use 'vonly' or 'nv'
+eliminateemos=('Disgusted', 'Surprised') #emos to eliminate from the entry set
 orderedemos, appraisalnames, appraisaldata, stims, item2emomapping, alldims, defaultdimordering, explicit, othercols,valenceddims, columndict, suffixmappings, excludecols=ndim.setndimvals(version, suffix, appraisalfile, stimfile)
 
 # <codecell>
 
 ## run nde analyses and create figs
-#printsave#nde_data.main(nderesultsfile, ndecheckquestions,ndeexpectedanswers,ndeinclusioncols,orderedemos)
+NDE_accuracy, NDE_confusions=nde_data.main(nderesultsfile, ndecheckquestions,ndeexpectedanswers,ndeinclusioncols,orderedemos,eliminateemos)
 #print nderesultsfile
-
 # <codecell>
 
 #specify an intuitive ordering for dimensions (relevant when visualizing)
@@ -81,7 +87,8 @@ keeperemos=[keep.emo for keep in keepers]
 
 # <codecell>
 #look at individual difference data
-#printsave#ndim.analyzesubjects([subj for subj in subjects if subj.subjid not in badsubjectnames], version)
+subjectresults=[]
+#subjectresults=ndim.analyzesubjects([subj for subj in subjects if subj.subjid not in badsubjectnames], version)
 
 # <codecell>
 #housekeeping
@@ -94,41 +101,47 @@ keepers, numstimsperemo=ndim.assignCVfolds(keepers,item2emomapping) #add cv rele
 #check hit counts
 hitthresh=5
 listdict, blacklist, histogramdict, needmores=ndim.checkitemcounts(orderedlabels, keepers, hitthresh)
-print blacklist
-print listdict
+#print blacklist
+#print listdict
 
 # <codecell>
-#get accuracy data from ndim subjects
-labelxemo, emoxemo, selectiveitems=ndim.explicitemosndim(version, keepers, orderedemos, orderedlabels)
+#compute for each dimension, the average and std over the whole dataset, and update entries with this info
+keepers=ndim.computegroupavgs(keepers,newdimordering)
+
 # <codecell>
 #compute item, emo, and dim avgs:
-itemavgs,itemlabels,itememos,emoavgs,dimavgs=ndaw.basicdescriptives(keepers,orderedlabels, orderedemos, dimlabels, suffix, savepath)
+itemavgs,normalizeditemavgs,itemlabels,itememos,emoavgs,normalizedemoavgs,dimavgs,emosimilarityspace=ndaw.basicdescriptives(keepers,orderedlabels, orderedemos, dimlabels, suffix, eliminateemos, savepath)
 
 # <codecell>
-
 #can limit to a subset of emos
-allbut2subset=[e for e in orderedemos if not e in ('Disgusted', 'Surprised')]
+#subset=[e for e in orderedemos if not e in eliminateemos]
 #basicsubsetemos=['Afraid', 'Joyful', 'Disgusted', 'Sad', 'Surprise', 'Angry']
-itemavgs, itemlabels, itememos, emoavgs, emolabels=ndim.reduce2subset(allbut2subset,itemavgs, itemlabels, itememos, emoavgs, list(emolabels))
-orderedlabels, orderedemos=ndim.orderlists(list(emolabels),list(itemlabels),keepers,orderedemos,item2emomapping) #molabels are randomly orded, here use manually sorted labels:
+#itemavgs, normalizeditemavgs, itemlabels, itememos, emoavgs, normalizedemoavgs, emolabels=ndim.reduce2subset(subset,itemavgs,normalizeditemavgs, itemlabels, itememos, emoavgs, normalizedemoavgs, list(emolabels))
+orderedlabels, orderedemos=ndim.orderlists(list(itememos),list(itemlabels),keepers,orderedemos,item2emomapping) #itememos are randomly orded, here use manually sorted labels:
+
+# <codecell>
+#get explicit rating data from ndim subjects
+labelxemo, emoxemo, selectiveitems=ndim.explicitemosndim(version, keepers, orderedemos, orderedlabels)
 
 # <codecell>
 
 #do clustering analysis with number of emotions imposed:
-print "****** clustering analysis******"
-clusterresults=ndaw.kmeansclustering(itemavgs, itememos, emolabels)
+#print "****** clustering analysis******"
+clusterresults=[]
+#clusterresults=ndaw.kmeansclustering(itemavgs, itememos, emolabels)
 
 # <codecell>
 
 #do pca with dimensions as columns, display dimensions with highest loadings on top eigenvectors
-print "****** PCA on dimensions******"
-pcaondimsresults=ndaw.pcaanalysis(itemavgs, 'dimensions', dimlabels, item2emomapping, savepath, 'item-wise correlations (of tranformed item vectors in dimension PC space)', orderedlabels, suffix)
+#print "****** PCA on dimensions******"
+pcaondimsresults=[]
+#pcaondimsresults=ndaw.pcaanalysis(itemavgs, 'dimensions', dimlabels, item2emomapping, savepath, 'item-wise correlations (of tranformed item vectors in dimension PC space)', orderedlabels, suffix)
 
 # <codecell>
 
 #do pca with items as columns, display items with highest loadings on top eigenvectors
-print "****** PCA on items******"
-pcaonitemsresults=ndaw.pcaanalysis(itemavgs, 'items', orderedlabels, item2emomapping, savepath, 'item-wise correlations (of tranformed dimension vectors in item PC space)', orderedlabels, suffix)
+#print "****** PCA on items******"
+#pcaonitemsresults=ndaw.pcaanalysis(itemavgs, 'items', orderedlabels, item2emomapping, savepath, 'item-wise correlations (of tranformed dimension vectors in item PC space)', orderedlabels, suffix)
 
 # <codecell>
 
@@ -137,7 +150,7 @@ classresults={}
 print "****** evenodd classifications******"
 cvfolds=range(2) # evenodd takes values 0 and 1
 cvtype='evenodd'
-classresults[cvtype]=ndaw.classifyitemsummaries(cvfolds, cvtype, keepers, orderedlabels, orderedemos, item2emomapping, savepath, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
+classresults[cvtype]=ndaw.classifysummaries(cvfolds, cvtype, keepers, orderedlabels, orderedemos, item2emomapping, savepath, usenormed=classifynormeddimvects, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
 print 'avg accuracy across folds: '+ str(classresults[cvtype]['summaryacc']*100)+'% (chance='+str(classresults[cvtype]['chance'])+')'
 # <codecell>
 
@@ -149,12 +162,41 @@ print 'avg accuracy across folds: '+ str(classresults[cvtype]['summaryacc']*100)
 print "****** stimnum classifications******"
 cvfolds=range(1,numstimsperemo+1) #stimnums start at 1
 cvtype='stimnum'
-classresults[cvtype]=ndaw.classifyitemsummaries(cvfolds, cvtype, keepers, orderedlabels, orderedemos, item2emomapping, savepath, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
+classresults[cvtype]=ndaw.classifysummaries(cvfolds, cvtype, keepers, orderedlabels, orderedemos, item2emomapping, savepath, usenormed=classifynormeddimvects, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
 print 'avg accuracy across folds: '+ str(classresults[cvtype]['summaryacc']*100)+'% (chance='+str(classresults[cvtype]['chance'])+')'
+
+# <codecell>
+#Classify emo based on dimensions...do things seperately for different subsets of the items.
+print "****** single item stimnum classifications******"
+cvfolds=range(1,numstimsperemo+1) #stimnums start at 1
+cvtype='stimnum'
+classresults[cvtype+'_singleitem']=ndaw.classifyindividualitems(cvfolds, cvtype, keepers, orderedlabels, orderedemos, item2emomapping, savepath, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
+print 'avg accuracy across folds: '+ str(classresults[cvtype+'_singleitem']['summaryacc']*100)+'% (chance='+str(classresults[cvtype+'_singleitem']['chance'])+')'
+
+# <codecell>
+#regress all explicit emos based on dimensions...do things seperately for different subsets of the items.
+print "****** single item stimnum regression******"
+cvfolds=range(1,numstimsperemo+1) #stimnums start at 1
+cvtype='stimnum'
+classresults[cvtype+'_regression']=ndaw.regresstemsummaries(cvfolds, cvtype, keepers, newdimordering, orderedlabels,labelxemo, orderedemos, item2emomapping, savepath, removeintendedemo=removeintendedemo, matrixtitle='emo-wise correlations (across items)', savetitle='emosimilarities_xhalves', suffix=suffix)
+
+
 # <codecell>
 
 #plot various classification results
 ndaw.plotclassresults(classresults)
+
+# <codecell>
+
+#save results of this analysis & make other script that specifically does comparisons across analysis
+analysisdeets=ndim.Analysis(version=version, usenormed=classifynormeddimvects, checkthresh=ct, subjavgcheckthresh=sact, exclusioncriteria=exclusioncriteria, suffix=suffix, savepath=item2emomapping, eliminateemos=eliminateemos, item2emomapping=item2emomapping, alldims=alldims, allemos=orderedemos, allitems=orderedlabels)
+confusioncorrs=ndim.corr2similarityspaces(NDE_confusions, classresults['stimnum_singleitem']['confusionavg'])
+similaritycorrs=ndim.corr2similarityspaces(NDE_confusions, emosimilarityspace)
+# should save classresults,NDE_confusions,NDE_accuracy, confussioncorrs, clusterresults, pcaondimsresults, analysisdeets, subjectresults
+d=datetime.datetime.now().strftime("%Y-%m-%d")
+outputdata={'classresults':classresults,'NDE_confusions':NDE_confusions,'NDE_accuracy':NDE_accuracy, 'confusioncorrs':confusioncorrs, 'similaritycorrs':similaritycorrs,'dimbasedsimilarityspace':emosimilarityspace,'clusterresults':clusterresults, 'pcaondimsresults':pcaondimsresults, 'analysisdeets':analysisdeets, 'subjectresults':subjectresults}
+outputdatafile=savepath+'analysis_'+d+'_'+version+'.txt'
+abf.pickletheseobjects(outputdatafile, [outputdata])
 
 # <rawcell>
 

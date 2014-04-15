@@ -9,6 +9,23 @@ import pxssh
 import pysftp
 import csv
 import numpy as np
+import cPickle as pickle
+
+def pickletheseobjects(filename, objects):
+    with open(filename, 'wb') as output:
+        pickler = pickle.Pickler(output, pickle.HIGHEST_PROTOCOL)
+        for obj in objects:
+            pickler.dump(obj)
+def loadpickledobjects(filename):
+    with open(filename, 'r') as inputfile:
+        remaining=1
+        objects=[]
+        while remaining:
+            try:
+                objects.append(pickle.load(inputfile))
+            except:
+                remaining=0
+    return objects
 
 def is_string_a_number(string):
     try:
